@@ -1,15 +1,16 @@
 mod api_sidecar;
+mod config;
 
 #[tauri::command]
 async fn exchange_anilist_token(
     code: String,
-    client_id: String,
-    client_secret: String,
-    redirect_uri: String,
 ) -> Result<String, String> {
-    println!("Rust: Received code: {}, client_id: {}, redirect_uri: {}", code, client_id, redirect_uri);
+    let client_id = config::get_var("ANILIST_CLIENT_ID")?;
+    let client_secret = config::get_var("ANILIST_CLIENT_SECRET")?;
+    let redirect_uri = config::get_var("ANILIST_REDIRECT_URI")?;
+
     let client = reqwest::Client::new();
-    let res = client
+    let response = client
         .post("https://anilist.co/api/v2/oauth/token")
         .form(&[
             ("grant_type", "authorization_code"),
@@ -22,22 +23,29 @@ async fn exchange_anilist_token(
         .await
         .map_err(|e| e.to_string())?;
 
-    if !res.status().is_success() {
-        let err = res.text().await.unwrap_or_default();
-        println!("Rust: AniList API Error: {:?}", err);
-        return Err(format!("Token exchange failed: {}", err));
+    let status = response.status();
+    let body = response.text().await.map_err(|e| e.to_string())?;
+
+    if !status.is_success() {
+        return Err(format!(
+            "AniList token exchange failed ({}): {}",
+            status, body
+        ));
     }
 
-    let json: serde_json::Value = res.json().await.map_err(|e| e.to_string())?;
-    println!("Rust: Exchange success");
+    let json: serde_json::Value =
+        serde_json::from_str(&body)
+            .map_err(|e| format!("Invalid AniList response: {}", e))?;
+
     json["access_token"]
         .as_str()
-        .map(|s| s.to_string())
-        .ok_or_else(|| "No access token in response".to_string())
+        .map(String::from)
+        .ok_or_else(|| "AniList response did not contain an access_token".into())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    config::load();
     let mut sidecars = api_sidecar::try_start();
 
     // single-instance MUST be the first plugin — with its "deep-link"

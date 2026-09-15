@@ -255,26 +255,12 @@ export async function startAniListOAuth(clientId: string): Promise<void> {
   }
 }
 
-/** Trade the deep-link callback code for an access token.
- *  AniList requires the client_secret field to exist (empty string for
- *  public clients) — omitting it causes unsupported_grant_type. */
-//import { invoke } from '@tauri-apps/api/core';
-
-// ... (keep OAUTH constants)
-
-export async function exchangeAuthCode(
-  code: string,
-  clientId: string,
-  clientSecret = '',
-): Promise<string> {
-  try {
-    return await invoke<string>('exchange_anilist_token', {
-      code,
-      client_id: clientId,
-      client_secret: clientSecret,
-      redirect_uri: getRedirectUri(),
-    });
-  } catch (e) {
-    throw new AniListError(String(e));
-  }
+export async function exchangeAuthCode(code: string): Promise<string> {
+    try {
+        return await invoke<string>('exchange_anilist_token', {
+            code,
+        });
+    } catch (e) {
+        throw new AniListError(String(e));
+    }
 }
