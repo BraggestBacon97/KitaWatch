@@ -3,7 +3,6 @@ import { consumet } from './consumet';
 import { animepahe } from './animepahe';
 import { anivexa } from './anivexa';
 import { anikage } from './anikage';
-import { animepahe } from './animepahe';
 import { useSettingsStore } from '@/stores/settingsStore';
 import type { AudioType, StreamSource, SubtitleTrack } from '@/types';
 

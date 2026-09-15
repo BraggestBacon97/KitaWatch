@@ -15,8 +15,10 @@ import type { AnimeSummary, EpisodeSummary } from '@/types';
 /** Metadata comes from AniList (reliable, legal); if it's unreachable we
  *  fall back to the Kuhi API's info endpoint. Episodes always come from
  *  Kuhi — that's where the provider streams live. */
+// Race local Kuhi against AniList in parallel — first success wins
+// (serial fallback made the page sit silent for up to ~50s on failures).
 const fetchInfo = (id: string) =>
-  api.info(id).catch(() => anilist.info(id).catch(() => api.info(id)));
+  Promise.any([api.info(id), anilist.info(id)]).catch(() => api.info(id));
 
 /** When every provider's episode list fails, fall back to AniList's episode
  *  count so playback can still be attempted by number (extract works by

@@ -13,6 +13,16 @@ interface Props {
 function AnimeCard({ anime, index = 0 }: Props) {
   const rating = typeof anime.rating === 'number' ? anime.rating : undefined;
 
+  // normalizeAnime falls back to id 0 when upstream IDs won't parse —
+  // a card without a real ID can't navigate anywhere useful.
+  if (!anime.id) {
+    return (
+      <div className="rounded-xl bg-ink-800 p-3 text-xs text-zinc-600 ring-1 ring-white/5">
+        {anime.title} (missing ID)
+      </div>
+    );
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}

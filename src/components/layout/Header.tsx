@@ -46,7 +46,11 @@ export default function Header() {
   // Debounced navigation (live search)
   useEffect(() => {
     const q = debounced.trim();
-    if (q.length >= 2) navigate(`/browse?q=${encodeURIComponent(q)}`);
+    // Only auto-navigate to browse if we are not already on a details or watch page
+    // and query length is sufficient.
+    if (q.length >= 2 && !window.location.pathname.startsWith('/anime/') && !window.location.pathname.startsWith('/watch/')) {
+      navigate(`/browse?q=${encodeURIComponent(q)}`);
+    }
   }, [debounced, navigate]);
 
   // Close on outside click
@@ -60,6 +64,7 @@ export default function Header() {
 
   const go = (s: AnimeSummary) => {
     add(s.title);
+    setValue(''); // Clear the search input
     setOpen(false);
     navigate(`/anime/${s.id}`);
   };

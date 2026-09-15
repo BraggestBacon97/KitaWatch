@@ -18,8 +18,10 @@ import { useSettingsStore } from '@/stores/settingsStore';
 import { useHistoryStore } from '@/stores/historyStore';
 import type { StreamSource } from '@/types';
 
+// Race local Kuhi against AniList in parallel — first success wins
+// (serial fallback made the page sit silent for up to ~50s on failures).
 const fetchInfo = (id: string) =>
-  api.info(id).catch(() => anilist.info(id).catch(() => api.info(id)));
+  Promise.any([api.info(id), anilist.info(id)]).catch(() => api.info(id));
 
 export default function Watch() {
   const { id, episode } = useParams<{ id: string; episode: string }>();

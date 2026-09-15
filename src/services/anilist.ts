@@ -1,4 +1,5 @@
 import type { AnimeInfo, AnimeSummary } from '@/types';
+import { invoke } from '@tauri-apps/api/core';
 import { useAuthStore, DEFAULT_REDIRECT } from '@/stores/authStore';
 
 const API_URL = 'https://graphql.anilist.co';
@@ -33,7 +34,12 @@ async function gql<T>(
     'Content-Type': 'application/json',
     Accept: 'application/json',
   };
-  if (token) headers.Authorization = `Bearer ${token}`;
+  if (token) {
+    headers.Authorization = `Bearer ${token.trim()}`;
+    console.log('gql: Using token (length ' + token.length + '):', token.substring(0, 10) + '...');
+  } else {
+    console.log('gql: No token');
+  }
 
   // 10s hard timeout — a hung fetch must never leave a page loading forever
   const attempt = () =>
@@ -252,32 +258,23 @@ export async function startAniListOAuth(clientId: string): Promise<void> {
 /** Trade the deep-link callback code for an access token.
  *  AniList requires the client_secret field to exist (empty string for
  *  public clients) — omitting it causes unsupported_grant_type. */
+//import { invoke } from '@tauri-apps/api/core';
+
+// ... (keep OAUTH constants)
+
 export async function exchangeAuthCode(
   code: string,
   clientId: string,
   clientSecret = '',
 ): Promise<string> {
-  const res = await fetch(OAUTH_TOKEN, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify({
-      grant_type: 'authorization_code',
+  try {
+    return await invoke<string>('exchange_anilist_token', {
+      code,
       client_id: clientId,
       client_secret: clientSecret,
       redirect_uri: getRedirectUri(),
-      code,
-    }),
-  });
-  if (!res.ok) {
-    let detail = '';
-    try {
-      detail = `: ${(await res.text()).slice(0, 160)}`;
-    } catch {
-      // no body
-    }
-    throw new AniListError(`Token exchange failed (${res.status})${detail}`);
+    });
+  } catch (e) {
+    throw new AniListError(String(e));
   }
-  const json = (await res.json()) as { access_token?: string };
-  if (!json.access_token) throw new AniListError('AniList returned no access token');
-  return json.access_token;
 }
