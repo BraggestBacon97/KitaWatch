@@ -6,6 +6,11 @@ import { anikage } from './anikage';
 import { useSettingsStore } from '@/stores/settingsStore';
 import type { AudioType, StreamSource, SubtitleTrack } from '@/types';
 
+// Session cache: skipping through a season must not re-fire every
+// backend per episode. 10-minute TTL.
+const streamCache = new Map<string, { at: number; value: ResolvedStreams }>();
+const CACHE_TTL_MS = 10 * 60_000;
+
 export interface ResolvedStreams {
   streams: StreamSource[];
   subtitles?: SubtitleTrack[];
@@ -25,7 +30,7 @@ function prioritize(streams: StreamSource[]): StreamSource[] {
  *  1) Kuhi extraction (by AniList ID) — races native providers
  *  2) Consumet (self-hosted Gogoanime)
  *  3) animepahe (via local proxy — kwik streams are referer-locked) */
-export async function resolveStreams(
+async function resolveStreamsInner(
   animeId: number | string,
   episode: number,
   audio: AudioType = 'sub',
@@ -120,4 +125,18 @@ export async function resolveStreams(
   }
 
   return { streams: [] };
+}
+
+export async function resolveStreams(
+  animeId: number | string,
+  episode: number,
+  audio: AudioType = 'sub',
+  title?: string,
+): Promise<ResolvedStreams> {
+  const key = `${animeId}|${episode}|${audio}`;
+  const hit = streamCache.get(key);
+  if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.value;
+  const value = await resolveStreamsInner(animeId, episode, audio, title);
+  streamCache.set(key, { at: Date.now(), value });
+  return value;
 }

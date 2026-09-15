@@ -20,8 +20,12 @@ export default function Header() {
   const [open, setOpen] = useState(false);
   const [suggestions, setSuggestions] = useState<AnimeSummary[]>([]);
   const wrapRef = useRef<HTMLDivElement>(null);
+  // Only auto-navigate when the CHANGE came from this input — a pending
+  // debounce must never yank the user back to /browse after they navigated
+  // to Settings etc.
+  const dirty = useRef(false);
 
-  // Debounced autocomplete against /anime/suggestions
+  // Debounced autocomplete against AniList (fast), Kuhi as fallback
   useEffect(() => {
     const q = debounced.trim();
     if (q.length < 2) {
@@ -33,7 +37,8 @@ export default function Header() {
       .search(q)
       .catch(() => api.suggestions(q))
       .then((list) => {
-        if (!cancelled) setSuggestions(list.filter((s) => s?.id && s?.title).slice(0, 7));
+        if (cancelled) return;
+        setSuggestions(list.filter((s) => s?.id && s?.title).slice(0, 7));
       })
       .catch(() => {
         if (!cancelled) setSuggestions([]);
@@ -43,15 +48,18 @@ export default function Header() {
     };
   }, [debounced]);
 
-  // Debounced navigation (live search)
+  // Live search — ONLY for edits made in this input
   useEffect(() => {
+    if (!dirty.current) return;
     const q = debounced.trim();
-    // Only auto-navigate to browse if we are not already on a details or watch page
-    // and query length is sufficient.
-    if (q.length >= 2 && !window.location.pathname.startsWith('/anime/') && !window.location.pathname.startsWith('/watch/')) {
-      navigate(`/browse?q=${encodeURIComponent(q)}`);
-    }
+    if (q.length >= 2) navigate(`/browse?q=${encodeURIComponent(q)}`);
+    else if (q.length === 0) navigate('/browse');
   }, [debounced, navigate]);
+
+  // External navigation (Settings click etc.): disarm the pending search
+  useEffect(() => {
+    dirty.current = false;
+  }, [searchParams]);
 
   // Close on outside click
   useEffect(() => {
@@ -64,13 +72,14 @@ export default function Header() {
 
   const go = (s: AnimeSummary) => {
     add(s.title);
-    setValue(''); // Clear the search input
+    dirty.current = false;
     setOpen(false);
     navigate(`/anime/${s.id}`);
   };
 
   const searchFor = (q: string) => {
     add(q);
+    dirty.current = true;
     setValue(q);
     setOpen(false);
     navigate(`/browse?q=${encodeURIComponent(q.trim())}`);
@@ -82,7 +91,10 @@ export default function Header() {
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
         <input
           value={value}
-          onChange={(e) => setValue(e.target.value)}
+          onChange={(e) => {
+            setValue(e.target.value);
+            dirty.current = true;
+          }}
           onFocus={() => setOpen(true)}
           onKeyDown={(e) => {
             if (e.key === 'Enter') searchFor(value);
@@ -95,6 +107,7 @@ export default function Header() {
           <button
             onClick={() => {
               setValue('');
+              dirty.current = false;
               navigate('/browse');
             }}
             aria-label="Clear search"
@@ -168,7 +181,7 @@ export default function Header() {
         )}
       </div>
 
-      {/* AniList account (replaces the raw API chip) */}
+      {/* AniList account */}
       <div className="ml-auto">
         {viewer && accessToken ? (
           <Link

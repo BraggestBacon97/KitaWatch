@@ -39,7 +39,8 @@ async function finishWithToken(token: string): Promise<boolean> {
  *  Accepts either:
  *  - a kitawatch://auth?code=... deep-link callback URL, or
  *  - a raw access token (AniList's "auth pin" flow: redirect URL
- *    https://anilist.co/api/v2/oauth/pin shows the token on a page). */
+ *    https://anilist.co/api/v2/oauth/pin shows the token on a page).
+ *  The code exchange runs in Rust and reads client credentials from .env. */
 export async function completeLogin(raw: string): Promise<boolean> {
   const input = raw.trim();
   if (!input) {
@@ -103,15 +104,9 @@ export async function completeLogin(raw: string): Promise<boolean> {
     return false;
   }
 
-  const { clientId, clientSecret } = useAuthStore.getState();
-  if (!clientId) {
-    notify('Client ID missing — save it in Settings first');
-    return false;
-  }
-
-  notify('Exchanging code with AniList…');
+  notify('Exchanging code with AniList (via local backend)…');
   try {
-    const token = await exchangeAuthCode(code, clientId, clientSecret);
+    const token = await exchangeAuthCode(code);
     return await finishWithToken(token);
   } catch (e) {
     notify(e instanceof Error ? e.message : 'Login failed');

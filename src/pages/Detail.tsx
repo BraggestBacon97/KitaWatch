@@ -37,7 +37,6 @@ function fallbackEpisodes(
 export default function Detail() {
   const { id } = useParams<{ id: string }>();
   const info = useApi(() => fetchInfo(id!), [id]);
-  const episodes = useApi(() => api.episodes(id!), [id]);
   const { favorites, toggleFavorite } = useAnimeStore();
 
   const handleToggleFavorite = (anime: AnimeSummary) => {
@@ -64,12 +63,12 @@ export default function Detail() {
 
   const a = info.data;
   const favorite = a ? favorites.some((f) => f.id === a.id) : false;
-  const shownEpisodes: EpisodeSummary[] =
-    episodes.data && episodes.data.length > 0
-      ? episodes.data
-      : episodes.loading || episodes.error
-        ? []
-        : fallbackEpisodes(a?.totalEpisodes, a?.cover);
+  // Episode grid comes from AniList's official count — always reliable.
+  // Provider episode endpoints stay out of this path (they rate-limit/403);
+  // playback resolution still tries them per-episode.
+  const shownEpisodes: EpisodeSummary[] = info.loading
+    ? []
+    : fallbackEpisodes(a?.totalEpisodes, a?.cover);
 
   return (
     <PageContainer className="!space-y-0 !p-0">
@@ -184,26 +183,19 @@ export default function Detail() {
               </span>
             )}
           </h2>
-          {episodes.loading && (
+          {info.loading && (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
               {Array.from({ length: 6 }).map((_, i) => (
                 <Skeleton key={i} className="h-28" />
               ))}
             </div>
           )}
-          {episodes.error && !episodes.data && (
-            <ErrorState
-              title="Couldn't load episodes"
-              message={episodes.error}
-              onRetry={episodes.reload}
-            />
-          )}
-          {!episodes.loading && !episodes.error && shownEpisodes.length === 0 && (
+          {!info.loading && shownEpisodes.length === 0 && (
             <p className="py-8 text-sm text-zinc-500">
               No episodes found — providers may not carry this title yet.
             </p>
           )}
-          {!episodes.loading && shownEpisodes.length > 0 && (
+          {!info.loading && shownEpisodes.length > 0 && (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
               {shownEpisodes.map((ep) => (
                 <Link

@@ -43,14 +43,15 @@ interface SettingsState {
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
-      apiBaseUrl: 'http://localhost:8000',
+      // Hosted builds override via VITE_* env at build time.
+      apiBaseUrl: import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000',
       defaultQuality: 'auto',
       autoplayNext: true,
       providerPriority: [...PROVIDER_PRIORITY],
-      consumetBaseUrl: 'http://localhost:3000',
+      consumetBaseUrl: import.meta.env.VITE_CONSUMET_BASE_URL ?? 'http://localhost:3000',
       enableConsumetFallback: true,
-      proxyBaseUrl: 'http://localhost:8001',
-      anivexaBaseUrl: 'http://localhost:4000',
+      proxyBaseUrl: import.meta.env.VITE_PROXY_BASE_URL ?? 'http://localhost:8001',
+      anivexaBaseUrl: import.meta.env.VITE_ANIVEXA_BASE_URL ?? 'http://localhost:4000',
       enableAnivexa: true,
       setApiBaseUrl: (apiBaseUrl) => set({ apiBaseUrl }),
       setDefaultQuality: (defaultQuality) => set({ defaultQuality }),
