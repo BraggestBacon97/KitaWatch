@@ -1,0 +1,343 @@
+import { useEffect, useState } from 'react';
+import { Check, ExternalLink, LogOut, RefreshCw, Trash2 } from 'lucide-react';
+import PageContainer from '@/components/layout/PageContainer';
+import Button from '@/components/ui/Button';
+import Disclaimer from '@/components/ui/Disclaimer';
+import { useSettingsStore, type Quality } from '@/stores/settingsStore';
+import { useAuthStore } from '@/stores/authStore';
+import { useAnimeStore } from '@/stores/animeStore';
+import { anilist, startAniListOAuth } from '@/services/anilist';
+import { completeLogin, markLoginPending, setAuthNotifier } from '@/services/authFlow';
+
+const QUALITIES: Quality[] = ['auto', '1080p', '720p', '480p'];
+
+function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button
+      onClick={() => onChange(!on)}
+      role="switch"
+      aria-checked={on}
+      className={`relative h-6 w-11 shrink-0 rounded-full transition ${on ? 'bg-accent-600' : 'bg-ink-700'}`}
+    >
+      <span
+        className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${on ? 'left-[22px]' : 'left-0.5'}`}
+      />
+    </button>
+  );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="rounded-2xl bg-ink-900 p-5 ring-1 ring-white/5">
+      <h2 className="mb-4 text-sm font-semibold uppercase tracking-widest text-zinc-500">
+        {title}
+      </h2>
+      <div className="space-y-4">{children}</div>
+    </section>
+  );
+}
+
+export default function Settings() {
+  const {
+    apiBaseUrl,
+    defaultQuality,
+    autoplayNext,
+    setApiBaseUrl,
+    setDefaultQuality,
+    setAutoplayNext,
+    consumetBaseUrl,
+    enableConsumetFallback,
+    setConsumetBaseUrl,
+    setEnableConsumetFallback,
+  } = useSettingsStore();
+
+  const { clientId, accessToken, viewer, setClientId, setAnilistRedirect, clear, anilistRedirect } = useAuthStore();
+  const mergeFavorites = useAnimeStore((s) => s.mergeFavorites);
+
+  const [url, setUrl] = useState(apiBaseUrl);
+  const [savedUrl, setSavedUrl] = useState(false);
+  const [idInput, setIdInput] = useState(clientId);
+  const [redirectInput, setRedirectInput] = useState(anilistRedirect);
+  const [connecting, setConnecting] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [note, setNote] = useState('');
+  const [callbackUrl, setCallbackUrl] = useState('');
+  const [consumetUrl, setConsumetUrl] = useState(consumetBaseUrl);
+
+  useEffect(() => setAuthNotifier(setNote), []);
+
+  const flash = (msg: string) => {
+    setNote(msg);
+    setTimeout(() => setNote(''), 4000);
+  };
+
+  const saveConnection = () => {
+    setApiBaseUrl(url.trim());
+    setSavedUrl(true);
+    setTimeout(() => setSavedUrl(false), 1500);
+  };
+
+  const connect = async () => {
+    const id = idInput.trim();
+    if (!id) {
+      flash('Enter your AniList client ID first');
+      return;
+    }
+    setClientId(id);
+    setAnilistRedirect(redirectInput.trim() || 'kitawatch://auth');
+    markLoginPending(true);
+    setConnecting(true);
+    try {
+      await startAniListOAuth(id);
+      flash('Browser opened — approve the login there');
+    } catch (e) {
+      flash(e instanceof Error ? e.message : 'Could not open the browser');
+    } finally {
+      setConnecting(false);
+    }
+  };
+
+  const syncFavorites = async () => {
+    if (!accessToken || !viewer) return;
+    setSyncing(true);
+    try {
+      const remote = await anilist.importFavorites(accessToken, viewer.name);
+      mergeFavorites(remote);
+      flash(`Synced ${remote.length} favorites from AniList`);
+    } catch (e) {
+      flash(e instanceof Error ? e.message : 'Sync failed');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const clearData = () => {
+    if (!window.confirm('Clear all local KitaWatch data (settings, list, login)?')) return;
+    localStorage.removeItem('kitawatch-settings');
+    localStorage.removeItem('kitawatch-favorites');
+    localStorage.removeItem('kitawatch-auth');
+    localStorage.removeItem('kitawatch-history');
+    location.reload();
+  };
+
+  return (
+    <PageContainer className="max-w-3xl">
+      <h1 className="text-2xl font-bold text-white">Settings</h1>
+      {note && (
+        <p className="rounded-lg bg-ink-900 px-4 py-2 text-sm text-accent-300 ring-1 ring-accent-500/30">
+          {note}
+        </p>
+      )}
+
+      <Section title="AniList">
+        {viewer && accessToken ? (
+          <>
+            <div className="flex items-center gap-3">
+              {viewer.avatar ? (
+                <img src={viewer.avatar} alt="" className="h-10 w-10 rounded-full object-cover ring-2 ring-accent-500/40" />
+              ) : (
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent-600 text-sm font-bold text-white">
+                  {viewer.name.slice(0, 2).toUpperCase()}
+                </span>
+              )}
+              <div>
+                <p className="text-sm font-semibold text-white">{viewer.name}</p>
+                <p className="text-xs text-zinc-500">Connected — favorites sync both ways</p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" onClick={syncFavorites} disabled={syncing}>
+                <RefreshCw className={`h-3.5 w-3.5 ${syncing ? 'animate-spin' : ''}`} />
+                {syncing ? 'Syncing...' : 'Sync favorites now'}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  clear();
+                  flash('Disconnected from AniList');
+                }}
+              >
+                <LogOut className="h-3.5 w-3.5" /> Disconnect
+              </Button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="text-sm text-zinc-400">
+              Optional — log in to sync your list with AniList. Everything works
+              fine without it.
+            </p>
+            <div>
+              <label className="mb-1.5 flex items-center gap-1.5 text-sm text-zinc-400">
+                AniList client ID
+                <a
+                  href="https://anilist.co/settings/developer"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-0.5 text-xs text-accent-400 hover:underline"
+                >
+                  get one here <ExternalLink className="h-3 w-3" />
+                </a>
+              </label>
+              <input
+                value={idInput}
+                onChange={(e) => setIdInput(e.target.value)}
+                placeholder="e.g. 12345"
+                inputMode="numeric"
+                className="w-full rounded-lg bg-ink-800 px-3 py-2 text-sm text-zinc-200 ring-1 ring-white/10 focus:outline-none focus:ring-2 focus:ring-accent-500/60"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm text-zinc-400">
+                Redirect URL (must match the AniList client exactly)
+              </label>
+              <input
+                value={redirectInput}
+                onChange={(e) => setRedirectInput(e.target.value)}
+                spellCheck={false}
+                className="w-full rounded-lg bg-ink-800 px-3 py-2 text-sm text-zinc-200 ring-1 ring-white/10 focus:outline-none focus:ring-2 focus:ring-accent-500/60"
+              />
+              <p className="mt-1.5 text-xs text-zinc-600">
+                <code className="text-zinc-400">kitawatch://auth</code> for the
+                deep-link flow, or{' '}
+                <code className="text-zinc-400">https://anilist.co/api/v2/oauth/pin</code>{' '}
+                for the token-paste flow.
+              </p>
+            </div>
+            <div>
+              <Button onClick={connect} disabled={connecting}>
+                {connecting ? 'Opening browser...' : 'Connect AniList account'}
+              </Button>
+            </div>
+            <div className="rounded-lg bg-ink-800/60 p-3 ring-1 ring-white/5">
+              <p className="mb-2 text-xs text-zinc-500">
+                Trouble? After approving in the browser, copy the full URL from
+                the address bar (<code>kitawatch://auth?code=...</code>) and paste it here:
+              </p>
+              <div className="flex gap-2">
+                <input
+                  value={callbackUrl}
+                  onChange={(e) => setCallbackUrl(e.target.value)}
+                  placeholder="kitawatch://auth?code=..."
+                  spellCheck={false}
+                  className="flex-1 rounded-lg bg-ink-800 px-3 py-2 text-xs text-zinc-200 ring-1 ring-white/10 focus:outline-none focus:ring-2 focus:ring-accent-500/60"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    completeLogin(callbackUrl.trim());
+                    setCallbackUrl('');
+                  }}
+                >
+                  Submit
+                </Button>
+              </div>
+            </div>
+          </>
+        )}
+      </Section>
+
+      <Section title="Playback">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm text-zinc-300">Default quality</p>
+            <p className="text-xs text-zinc-600">Applied by the player</p>
+          </div>
+          <select
+            value={defaultQuality}
+            onChange={(e) => setDefaultQuality(e.target.value as Quality)}
+            className="rounded-lg bg-ink-800 px-3 py-2 text-sm text-zinc-200 ring-1 ring-white/10 focus:outline-none focus:ring-2 focus:ring-accent-500/60"
+          >
+            {QUALITIES.map((q) => (
+              <option key={q} value={q}>
+                {q === 'auto' ? 'Auto' : q}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm text-zinc-300">Auto-play next episode</p>
+            <p className="text-xs text-zinc-600">Seamless binge sessions</p>
+          </div>
+          <Toggle on={autoplayNext} onChange={setAutoplayNext} />
+        </div>
+      </Section>
+
+      <Section title="Extra Providers">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm text-zinc-300">Consumet fallback (Gogoanime)</p>
+            <p className="text-xs text-zinc-600">
+              Independent provider ecosystem, used when Kuhi returns nothing
+            </p>
+          </div>
+          <Toggle on={enableConsumetFallback} onChange={setEnableConsumetFallback} />
+        </div>
+        <div className="flex gap-2">
+          <input
+            value={consumetUrl}
+            onChange={(e) => setConsumetUrl(e.target.value)}
+            spellCheck={false}
+            className="flex-1 rounded-lg bg-ink-800 px-3 py-2 text-sm text-zinc-200 ring-1 ring-white/10 focus:outline-none focus:ring-2 focus:ring-accent-500/60"
+          />
+          <Button variant="outline" size="sm" onClick={() => { setConsumetBaseUrl(consumetUrl.trim()); flash('Saved'); }}>
+            Save
+          </Button>
+        </div>
+        <p className="text-xs text-zinc-600">
+          Run it with: <code className="text-zinc-400">docker run -p 3000:3000 riimuru/consumet-api</code>
+        </p>
+      </Section>
+
+      <Section title="Streaming API">
+        <div>
+          <label className="mb-1.5 block text-sm text-zinc-400">
+            Stream extraction API base URL
+          </label>
+          <div className="flex gap-2">
+            <input
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              spellCheck={false}
+              className="flex-1 rounded-lg bg-ink-800 px-3 py-2 text-sm text-zinc-200 ring-1 ring-white/10 focus:outline-none focus:ring-2 focus:ring-accent-500/60"
+            />
+            <Button onClick={saveConnection} disabled={!url.trim()}>
+              {savedUrl ? (
+                <>
+                  <Check className="h-4 w-4" /> Saved
+                </>
+              ) : (
+                'Save'
+              )}
+            </Button>
+          </div>
+          <p className="mt-1.5 text-xs text-zinc-600">
+            Only touch this if you run a different extraction API instance.
+          </p>
+        </div>
+      </Section>
+
+      <Section title="Data">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm text-zinc-300">Clear local data</p>
+            <p className="text-xs text-zinc-600">
+              Settings, My List, history and the AniList login token
+            </p>
+          </div>
+          <Button variant="outline" size="sm" onClick={clearData}>
+            <Trash2 className="h-3.5 w-3.5" /> Clear
+          </Button>
+        </div>
+      </Section>
+
+      <Section title="About">
+        <p className="text-sm text-zinc-400">KitaWatch v0.2.0</p>
+        <Disclaimer />
+      </Section>
+    </PageContainer>
+  );
+}

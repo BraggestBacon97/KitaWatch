@@ -1,0 +1,18 @@
+node_modules
+dist
+src-tauri/target
+src-tauri/gen
+*.log
+.DS_Store
+
+# cloned third-party APIs — fetched via npm run setup:api / setup:anivexa
+api/
+
+# python sidecars
+__pycache__/
+*.pyc
+proxy/__pycache__/
+
+# local env / secrets — never commit
+.env
+.env.*
