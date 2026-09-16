@@ -22,8 +22,6 @@ jobs:
         with:
           python-version: '3.12'
 
-      # Sidecar deps (Kuhi API + proxy are fetched by setup scripts in real use;
-      # for CI, clone what the app expects or skip sidecars for v0 releases)
       - name: Install frontend deps
         run: npm install
 
@@ -36,10 +34,20 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
+      # Sidecars: the committed src-tauri/binaries exes are platform-specific.
+      # For full Linux releases, build the sidecars on Linux (see docs/UPDATES.md);
+      # the Windows binaries committed to the repo are used on windows-latest.
+      - name: Build sidecars (windows, from committed script)
+        if: matrix.platform == 'windows-latest'
+        run: npm run build:sidecars
+
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Updater signing (create via `npm run tauri signer generate`, see docs/UPDATES.md)
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'KitaWatch ${{ github.ref_name }}'

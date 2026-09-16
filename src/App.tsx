@@ -6,6 +6,8 @@ import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 import ErrorBoundary from '@/components/ui/ErrorBoundary';
 import { completeLogin, isLoginPending } from '@/services/authFlow';
+import { useUpdater } from '@/hooks/useUpdater';
+import { Download, X } from 'lucide-react';
 
 // Route-level code splitting: each page is its own chunk, loaded on demand.
 const Home = lazy(() => import('@/pages/Home'));
@@ -39,6 +41,7 @@ async function handleAuthUrl(rawUrl: string) {
 
 export default function App() {
   const location = useLocation();
+  const { state: updater, install, dismiss } = useUpdater();
 
   useEffect(() => {
     let disposed = false;
@@ -109,6 +112,36 @@ export default function App() {
           </Suspense>
         </ErrorBoundary>
       </div>
+      {/* Update banner */}
+      {(updater.kind === 'available' || updater.kind === 'installing' || updater.kind === 'installed') && (
+        <div className="fixed bottom-4 right-4 z-50 flex items-center gap-3 rounded-xl bg-ink-850 px-4 py-3 shadow-2xl ring-1 ring-accent-500/40">
+          {updater.kind === 'installed' ? (
+            <p className="text-sm text-zinc-200">
+              Update installed — restart KitaWatch to finish.
+            </p>
+          ) : (
+            <>
+              <Download className="h-4 w-4 text-accent-400" />
+              <p className="text-sm text-zinc-200">
+                {updater.kind === 'available'
+                  ? `KitaWatch v${updater.update.version} is available`
+                  : 'Downloading update…'}
+              </p>
+              {updater.kind === 'available' && (
+                <button
+                  onClick={install}
+                  className="rounded-lg bg-accent-600 px-3 py-1 text-xs font-medium text-white hover:bg-accent-500"
+                >
+                  Update
+                </button>
+              )}
+            </>
+          )}
+          <button onClick={dismiss} aria-label="Dismiss" className="text-zinc-500 hover:text-zinc-200">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

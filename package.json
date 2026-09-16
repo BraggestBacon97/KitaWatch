@@ -1,7 +1,7 @@
 {
   "name": "kitawatch",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "KitaWatch - desktop anime streaming client (Tauri v2 + React)",
   "scripts": {
     "dev": "vite",
@@ -11,9 +11,16 @@
     "setup:api": "node scripts/setup-api.mjs",
     "api": "node scripts/run-api.mjs",
     "setup:anivexa": "node scripts/setup-anivexa.mjs",
-    "build:sidecars": "node scripts/build-sidecars.mjs"
+    "build:sidecars": "node scripts/build-sidecars.mjs",
+    "release:tag": "node scripts/tag-release.mjs",
+    "release": "npm run build:sidecars && tauri build"
   },
   "dependencies": {
+    "@tanstack/react-virtual": "^3.13.0",
+    "@tauri-apps/plugin-deep-link": "^2.4.9",
+    "@tauri-apps/plugin-opener": "^2.5.4",
+    "@tauri-apps/plugin-shell": "2",
+    "@tauri-apps/plugin-updater": "2",
     "artplayer": "^5.2.3",
     "framer-motion": "^12.0.0",
     "hls.js": "^1.5.20",
@@ -21,10 +28,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.30.0",
-    "zustand": "^5.0.3",
-    "@tanstack/react-virtual": "^3.13.0",
-    "@tauri-apps/plugin-opener": "^2.5.4",
-    "@tauri-apps/plugin-deep-link": "^2.4.9"
+    "zustand": "^5.0.3"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.0",

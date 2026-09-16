@@ -5,6 +5,7 @@ interface ImportMetaEnv {
   readonly VITE_PROXY_BASE_URL?: string;
   readonly VITE_ANIVEXA_BASE_URL?: string;
   readonly VITE_CONSUMET_BASE_URL?: string;
+  readonly VITE_GATE_URL?: string;
 }
 
 interface ImportMeta {

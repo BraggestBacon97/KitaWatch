@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+/** Build standalone sidecar binaries, then `npm run tauri build`. */
 import { existsSync, mkdirSync, writeFileSync, copyFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -17,7 +19,7 @@ const entries = [
 
 for (const e of entries) {
   if (!existsSync(e.dir)) {
-    console.log(`[sidecars] skipping ${e.name} — ${path.relative(root, e.dir)} not found`);
+    console.log(`[sidecars] skipping ${e.name}`);
     continue;
   }
   const entryFile = path.join(e.dir, '_kitawatch_entry.py');
@@ -27,31 +29,29 @@ for (const e of entries) {
   );
   console.log(`[sidecars] pyinstaller: ${e.name} ...`);
   execSync(
-    `"${py}" -m PyInstaller --onefile --noconfirm --clean --name ${e.name} ` +
+    `"${py}" -m PyInstaller --onefile --noconsole --noconfirm --clean --name ${e.name} ` +
       `--collect-submodules api --collect-all uvicorn --collect-all fastapi --collect-all httpx "${entryFile}"`,
     { cwd: e.dir, stdio: 'inherit' },
   );
-  const target = path.join(outDir, `${e.name}-${triple}${ext}`);
-  copyFileSync(path.join(e.dir, 'dist', `${e.name}${ext}`), target);
-  console.log(`[sidecars] -> ${path.relative(root, target)}`);
+  copyFileSync(path.join(e.dir, 'dist', `${e.name}${ext}`), path.join(outDir, `${e.name}-${triple}${ext}`));
+  console.log(`[sidecars] -> src-tauri/binaries/${e.name}-${triple}${ext}`);
 }
 
 const anivexa = path.join(root, 'api', 'anivexa');
 if (existsSync(anivexa)) {
+  const target = path.join(outDir, `anivexa-${triple}${ext}`);
   console.log('[sidecars] pkg: anivexa (node20) ...');
   try {
     execSync(
-      `npx -y @yao-pkg/pkg server.js --targets node20-win-x64 --output "${path.join(outDir, `anivexa-${triple}${ext}`)}"`,
+      `npx -y @yao-pkg/pkg server.js --targets node20-${process.platform === 'win32' ? 'win' : 'linux'}-x64 --output "${target}"`,
       { cwd: anivexa, stdio: 'inherit', shell: true },
     );
   } catch {
     console.log('[sidecars] node20 cache miss — trying node22 ...');
     execSync(
-      `npx -y @yao-pkg/pkg server.js --targets node22-win-x64 --output "${path.join(outDir, `anivexa-${triple}${ext}`)}"`,
+      `npx -y @yao-pkg/pkg server.js --targets node22-${process.platform === 'win32' ? 'win' : 'linux'}-x64 --output "${target}"`,
       { cwd: anivexa, stdio: 'inherit', shell: true },
     );
   }
-} else {
-  console.log('[sidecars] skipping anivexa — api/anivexa not found');
 }
 console.log('[sidecars] done. Next: npm run tauri build');

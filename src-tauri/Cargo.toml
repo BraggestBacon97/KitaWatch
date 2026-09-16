@@ -1,6 +1,6 @@
 [package]
 name = "kitawatch"
-version = "0.3.0"
+version = "0.4.0"
 description = "KitaWatch - desktop anime streaming client"
 edition = "2021"
 rust-version = "1.77.2"
@@ -17,8 +17,11 @@ tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 tauri-plugin-deep-link = "2"
 tauri-plugin-shell = "2"
+tauri-plugin-updater = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+dotenvy = "0.15"
+reqwest = { version = "0.13", default-features = false, features = ["json", "rustls"] }
 
 [target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
 tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }

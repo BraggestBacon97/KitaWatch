@@ -4,12 +4,10 @@ import { useAuthStore, DEFAULT_REDIRECT } from '@/stores/authStore';
 
 const API_URL = 'https://graphql.anilist.co';
 export const OAUTH_AUTHORIZE = 'https://anilist.co/api/v2/oauth/authorize';
-export const OAUTH_TOKEN = 'https://anilist.co/api/v2/oauth/token';
 /** Redirect URI — must exactly match the AniList client's registered URL. */
 export function getRedirectUri(): string {
   return useAuthStore.getState().anilistRedirect?.trim() || DEFAULT_REDIRECT;
 }
-export const OAUTH_REDIRECT = DEFAULT_REDIRECT; // back-compat
 
 export class AniListError extends Error {}
 
@@ -34,12 +32,7 @@ async function gql<T>(
     'Content-Type': 'application/json',
     Accept: 'application/json',
   };
-  if (token) {
-    headers.Authorization = `Bearer ${token.trim()}`;
-    console.log('gql: Using token (length ' + token.length + '):', token.substring(0, 10) + '...');
-  } else {
-    console.log('gql: No token');
-  }
+  if (token) headers.Authorization = `Bearer ${token.trim()}`;
 
   // 10s hard timeout — a hung fetch must never leave a page loading forever
   const attempt = () =>
@@ -255,12 +248,22 @@ export async function startAniListOAuth(clientId: string): Promise<void> {
   }
 }
 
+/**
+ * Trade the deep-link callback code for an access token.
+ * Desktop: the Rust command does it (secret stays out of frontend code).
+ * Environment variables (.env) win; the values stored in Settings are the
+ * fallback so the installed app works where no .env exists.
+ */
 export async function exchangeAuthCode(code: string): Promise<string> {
-    try {
-        return await invoke<string>('exchange_anilist_token', {
-            code,
-        });
-    } catch (e) {
-        throw new AniListError(String(e));
-    }
+  const { clientId, anilistRedirect } = useAuthStore.getState();
+  try {
+    return await invoke<string>('exchange_anilist_token', {
+      code,
+      clientId: clientId || null,
+      clientSecret: null,
+      redirectUri: anilistRedirect || null,
+    });
+  } catch (e) {
+    throw new AniListError(e instanceof Error ? e.message : String(e));
+  }
 }

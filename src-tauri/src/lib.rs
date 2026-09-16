@@ -1,4 +1,6 @@
 mod api_sidecar;
+mod commands;
+mod config;
 use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -16,7 +18,9 @@ pub fn run() {
     builder = builder
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_deep_link::init())
-        .plugin(tauri_plugin_shell::init());
+        .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .invoke_handler(tauri::generate_handler![commands::exchange_anilist_token]);
 
     builder
         .setup(|app| {
