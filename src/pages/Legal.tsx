@@ -133,7 +133,7 @@ export function DmcaPage() {
           heading: 'Notices',
           body: [
             'If you are a rights holder and believe a source surfaced by KitaWatch infringes your copyright, contact the source site directly — they control the content.',
-            'You may also reach us at contact@kitawatch.nx.kg and we will review whether the source in question should be removed from the app\'s resolver list.',
+            'You may also reach us at kitacontact@protonmail.com and we will review whether the source in question should be removed from the app\'s resolver list.',
           ],
         },
         {

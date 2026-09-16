@@ -25,20 +25,14 @@ Built with Tauri v2 (Rust) + React 18 + TypeScript + Vite + Tailwind CSS v4
 # 1. Install JS dependencies
 npm install
 
-# 2. Setup Environment Variables
-copy .env.example .env
-# Open .env and fill in the required values (especially your AniList client credentials)
-
-# 3. Run the Kuhi API locally (or point Settings → Connection at a deployed instance)
+# 2. Run the Kuhi API locally (or point Settings → Connection at a deployed instance)
 git clone https://github.com/aryaniiil/anime-api
 cd anime-api
 # follow its README (uvicorn, default http://localhost:8000)
 
-# 4. Run the desktop app (frontend hot-reloads inside the native window)
+# 3. Run the desktop app (frontend hot-reloads inside the native window)
 npm run tauri dev
 ```
-
-**IMPORTANT**: Never commit the `.env` file to version control.
 
 For frontend-only development (no native window): `npm run dev`, then open
 http://localhost:1420.
