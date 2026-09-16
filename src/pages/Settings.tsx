@@ -335,7 +335,7 @@ export default function Settings() {
       </Section>
 
       <Section title="About">
-        <p className="text-sm text-zinc-400">KitaWatch v0.2.0</p>
+        <p className="text-sm text-zinc-400">KitaWatch v0.3.0</p>
         <Disclaimer />
       </Section>
     </PageContainer>

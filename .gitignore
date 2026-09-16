@@ -17,3 +17,8 @@ proxy/__pycache__/
 .env
 .env.*
 gate-db.json*
+
+binaries*
+build
+_kitawatch_entry.py
+proxy.*
