@@ -22,9 +22,6 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install frontend deps
-        run: npm install
-
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
@@ -32,20 +29,31 @@ jobs:
         if: matrix.platform == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf python3-dev
 
-      # Sidecars: the committed src-tauri/binaries exes are platform-specific.
-      # For full Linux releases, build the sidecars on Linux (see docs/UPDATES.md);
-      # the Windows binaries committed to the repo are used on windows-latest.
-      - name: Build sidecars (windows, from committed script)
-        if: matrix.platform == 'windows-latest'
+      - name: Install frontend deps
+        run: npm install
+
+      # ── Sidecars: fetch the API sources and build platform binaries ──
+      - name: Fetch API sources
+        run: |
+          git clone --depth 1 https://github.com/aryaniiil/kuhi-anime-api api/anime-api
+          git clone --depth 1 https://github.com/walterwhite-69/Anivexa-API api/anivexa
+
+      - name: Install Python deps + PyInstaller
+        run: |
+          python -m pip install pyinstaller
+          python -m pip install -r api/anime-api/requirements.txt
+          python -m pip install -r proxy/requirements.txt
+
+      - name: Build sidecars
         run: npm run build:sidecars
 
+      # ── App ──
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Updater signing (create via `npm run tauri signer generate`, see docs/UPDATES.md)
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
