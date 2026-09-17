@@ -151,21 +151,35 @@ mod imp {
     use super::*;
     use std::process::Command;
 
-    /// Resolve a bundled sidecar exe living next to the app binary.
+    /// Resolve a bundled sidecar exe. Tauri installs externalBin files WITHOUT
+    /// the target-triple suffix (it strips it at bundle time), so check the
+    /// plain name first; the triple-suffixed variant is a fallback.
     fn bundled_exe(name: &str) -> Option<PathBuf> {
         let mut exe = std::env::current_exe().ok()?;
         exe.pop(); // drop kitawatch.exe -> install dir
-        let file = format!(
-            "{name}-{SIDE_TRIPLE}{}",
-            if cfg!(windows) { ".exe" } else { "" }
-        );
-        let path = exe.join(&file);
-        if path.exists() {
-            Some(path)
-        } else {
-            eprintln!("[kitawatch] bundled sidecar missing: {file}");
-            None
+        let ext = if cfg!(windows) { ".exe" } else { "" };
+        let plain = format!("{name}{ext}");
+        let tripled = format!("{name}-{SIDE_TRIPLE}{ext}");
+        let candidates = [
+            exe.join(&plain),
+            exe.join(&tripled),
+            exe.join("binaries").join(&plain),
+            exe.join("binaries").join(&tripled),
+        ];
+        for path in &candidates {
+            if path.exists() {
+                return Some(path.clone());
+            }
         }
+        eprintln!(
+            "[kitawatch] bundled sidecar missing: {plain} (checked {})",
+            candidates
+                .iter()
+                .map(|p| p.display().to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+        None
     }
 
     fn spawn_hidden(cmd: &mut Command) -> Option<Child> {
@@ -188,8 +202,8 @@ mod imp {
         let mut procs = Vec::new();
 
         if !port_open("127.0.0.1:8000") {
-            if let Some(exe) = bundled_exe("kuhi-api") {
-                if let Some(c) = spawn_hidden(Command::new(exe)) {
+            if let Some(exe) = bundled_exe("kitawatch-kuhi-api") {
+                if let Some(c) = spawn_hidden(&mut Command::new(exe)) {
                     eprintln!("[kitawatch] started bundled kuhi-api on 127.0.0.1:8000");
                     procs.push(("Kuhi API", Proc::Bundled(c)));
                 }
@@ -199,8 +213,8 @@ mod imp {
         }
 
         if !port_open("127.0.0.1:8001") {
-            if let Some(exe) = bundled_exe("proxy") {
-                if let Some(c) = spawn_hidden(Command::new(exe)) {
+            if let Some(exe) = bundled_exe("kitawatch-proxy") {
+                if let Some(c) = spawn_hidden(&mut Command::new(exe)) {
                     eprintln!("[kitawatch] started bundled proxy on 127.0.0.1:8001");
                     procs.push(("proxy", Proc::Bundled(c)));
                 }
@@ -210,7 +224,7 @@ mod imp {
         }
 
         if !port_open("127.0.0.1:4000") {
-            if let Some(exe) = bundled_exe("anivexa") {
+            if let Some(exe) = bundled_exe("kitawatch-anivexa") {
                 if let Some(c) = spawn_hidden(Command::new(exe).env("PORT", "4000")) {
                     eprintln!("[kitawatch] started bundled anivexa on 127.0.0.1:4000");
                     procs.push(("Anivexa API", Proc::Bundled(c)));
@@ -224,7 +238,30 @@ mod imp {
     }
 }
 
+/// Windows: sidecars orphaned by a crashed/killed app (no graceful Exit
+/// event) survive as zombie exes. Kill any leftovers before spawning fresh —
+/// port probes alone can't see a hung process holding no listen socket.
+#[cfg(target_os = "windows")]
+fn kill_stragglers() {
+    use std::process::{Command, Stdio};
+    for name in [
+        "kitawatch-kuhi-api.exe",
+        "kitawatch-proxy.exe",
+        "kitawatch-anivexa.exe",
+    ] {
+        let _ = Command::new("taskkill")
+            .args(["/F", "/IM", name])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn kill_stragglers() {}
+
 pub fn start() -> Sidecars {
+    kill_stragglers();
     let procs = imp::start();
     Sidecars { procs }
 }

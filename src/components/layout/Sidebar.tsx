@@ -114,6 +114,14 @@ export default function Sidebar() {
           <Link to="/privacy" className="text-zinc-500 hover:text-zinc-300">Privacy</Link>
           <Link to="/dmca" className="text-zinc-500 hover:text-zinc-300">DMCA</Link>
           <a
+            href="https://github.com/F0xyN0xy/KitaWatch/issues"
+            target="_blank"
+            rel="noreferrer"
+            className="text-zinc-500 hover:text-zinc-300"
+          >
+            Bugs & Ideas
+          </a>
+          <a
             href="https://kitawatch.nx.kg"
             target="_blank"
             rel="noreferrer"
@@ -124,7 +132,7 @@ export default function Sidebar() {
         </div>
         <Disclaimer />
         <p className="text-[10px] uppercase tracking-widest text-zinc-700">
-          v0.4.2
+          v0.5.0
         </p>
       </div>
     </motion.aside>

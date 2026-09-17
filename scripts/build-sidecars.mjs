@@ -1,5 +1,7 @@
 #!/usr/bin/env node
-/** Build standalone sidecar binaries, then `npm run tauri build`. */
+/**
+ * Build standalone sidecar binaries, then `npm run tauri build`.
+ */
 import { existsSync, mkdirSync, writeFileSync, copyFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -13,19 +15,19 @@ mkdirSync(outDir, { recursive: true });
 const py = process.env.KITAWATCH_PYTHON || 'python';
 
 const entries = [
-  { dir: path.join(root, 'api', 'anime-api'), module: 'api:app', port: 8000, name: 'kuhi-api' },
-  { dir: path.join(root, 'proxy'), module: 'server:app', port: 8001, name: 'proxy' },
+  { dir: path.join(root, 'api', 'anime-api'), module: 'api:app', port: 8000, name: 'kitawatch-kuhi-api' },
+  { dir: path.join(root, 'proxy'), module: 'server:app', port: 8001, name: 'kitawatch-proxy' },
 ];
 
 for (const e of entries) {
   if (!existsSync(e.dir)) {
-    console.log(`[sidecars] skipping ${e.name}`);
+    console.log(`[sidecars] skipping ${e.name} — ${path.relative(root, e.dir)} not found`);
     continue;
   }
   const entryFile = path.join(e.dir, '_kitawatch_entry.py');
   writeFileSync(
     entryFile,
-    `import os\nimport multiprocessing\n\nif __name__ == "__main__":\n    multiprocessing.freeze_support()\n    import uvicorn\n    uvicorn.run("${e.module}", host="127.0.0.1", port=int(os.environ.get("PORT", "${e.port}")), log_level="warning")\n`,
+    `import os\nimport sys\nimport multiprocessing\n\nif __name__ == "__main__":\n    multiprocessing.freeze_support()\n    # windowed (--noconsole) apps have no stdout on Windows; uvicorn's log\n    # formatter calls sys.stdout.isatty() and crashes without one\n    if sys.stdout is None:\n        sys.stdout = open(os.devnull, "w")\n        sys.stderr = open(os.devnull, "w")\n    import uvicorn\n    uvicorn.run("${e.module}", host="127.0.0.1", port=int(os.environ.get("PORT", "${e.port}")), log_level="warning")\n`,
   );
   console.log(`[sidecars] pyinstaller: ${e.name} ...`);
   execSync(
@@ -33,13 +35,14 @@ for (const e of entries) {
       `--collect-submodules api --collect-all uvicorn --collect-all fastapi --collect-all httpx "${entryFile}"`,
     { cwd: e.dir, stdio: 'inherit' },
   );
-  copyFileSync(path.join(e.dir, 'dist', `${e.name}${ext}`), path.join(outDir, `${e.name}-${triple}${ext}`));
-  console.log(`[sidecars] -> src-tauri/binaries/${e.name}-${triple}${ext}`);
+  const target = path.join(outDir, `${e.name}-${triple}${ext}`);
+  copyFileSync(path.join(e.dir, 'dist', `${e.name}${ext}`), target);
+  console.log(`[sidecars] -> ${path.relative(root, target)}`);
 }
 
 const anivexa = path.join(root, 'api', 'anivexa');
 if (existsSync(anivexa)) {
-  const target = path.join(outDir, `anivexa-${triple}${ext}`);
+  const target = path.join(outDir, `kitawatch-anivexa-${triple}${ext}`);
   console.log('[sidecars] pkg: anivexa (node20) ...');
   try {
     execSync(
@@ -53,5 +56,7 @@ if (existsSync(anivexa)) {
       { cwd: anivexa, stdio: 'inherit', shell: true },
     );
   }
+} else {
+  console.log('[sidecars] skipping anivexa — api/anivexa not found');
 }
 console.log('[sidecars] done. Next: npm run tauri build');

@@ -11,11 +11,8 @@ import { anilist } from '@/services/anilist';
 import { useApi } from '@/hooks/useApi';
 import { useAnimeStore } from '@/stores/animeStore';
 import { useAuthStore } from '@/stores/authStore';
-import type { AnimeSummary, EpisodeSummary, Paged } from '@/types';
+import type { AnimeSummary, EpisodeSummary } from '@/types';
 
-/** Metadata comes from AniList (reliable, legal); if it's unreachable we
- *  fall back to the Kuhi API's info endpoint. Episodes always come from
- *  Kuhi — that's where the provider streams live. */
 // Race local Kuhi against AniList in parallel — first success wins
 // (serial fallback made the page sit silent for up to ~50s on failures).
 const fetchInfo = (id: string) =>
@@ -64,27 +61,21 @@ export default function Detail() {
 
   const a = info.data;
   const favorite = a ? favorites.some((f) => f.id === a.id) : false;
-
-  const recommendations = useApi(
-    () =>
-      a
-        ? api.recommendations(a.id, 1)
-        : Promise.resolve({
-            page: 1,
-            perPage: 0,
-            total: 0,
-            hasNextPage: false,
-            results: [],
-          } as Paged<AnimeSummary>),
-    [a?.id]
-  );
-
   // Episode grid comes from AniList's official count — always reliable.
-  // Provider episode endpoints stay out of this path (they rate-limit/403);
-  // playback resolution still tries them per-episode.
   const shownEpisodes: EpisodeSummary[] = info.loading
     ? []
     : fallbackEpisodes(a?.totalEpisodes, a?.cover);
+
+  // AniList-direct recommendations (covers guaranteed); Kuhi as fallback
+  const recommendations = useApi<AnimeSummary[]>(
+    () =>
+      id
+        ? anilist
+            .recommendations(id)
+            .catch(() => api.recommendations(id, 1).then((r) => r.results))
+        : Promise.resolve([]),
+    [id],
+  );
 
   return (
     <PageContainer className="!space-y-0 !p-0">
@@ -249,12 +240,9 @@ export default function Detail() {
           )}
         </section>
 
-        {/* Recommendations */}
-        {recommendations.data && (recommendations.data.results || []).length > 0 && (
-          <section>
-            <h2 className="mb-4 text-lg font-semibold text-white">You Might Also Like</h2>
-            <AnimeRow items={recommendations.data.results} loading={recommendations.loading} />
-          </section>
+        {/* Recommendations (AniList-direct — covers guaranteed) */}
+        {recommendations.data && recommendations.data.length > 0 && (
+          <AnimeRow title="Recommendations" items={recommendations.data} />
         )}
       </div>
     </PageContainer>

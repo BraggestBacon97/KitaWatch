@@ -1,50 +1,92 @@
+<div align="center">
+
 # KitaWatch
 
-[![Release](https://img.shields.io/github/v/release/F0xyN0xy/KitaWatch?style=flat-square)](https://github.com/F0xyN0xy/KitaWatch/releases/latest)
-[![Build](https://img.shields.io/github/actions/workflow/status/F0xyN0xy/KitaWatch/release.yml?style=flat-square)](https://github.com/F0xyN0xy/KitaWatch/actions/workflows/release.yml)
-![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/F0xyN0xy/KitaWatch/total)
-[![License](https://img.shields.io/badge/license-PolyForm%20Noncommercial%201.0-blue?style=flat-square)](./LICENSE.md)
-[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-8b5cf6?style=flat-square)]()
-[![Tauri](https://img.shields.io/badge/Tauri-v2-ffc131?style=flat-square&logo=tauri)](https://v2.tauri.app)
-[![React](https://img.shields.io/badge/React-18-61dafb?style=flat-square&logo=react)](https://react.dev)
+**A cross-platform desktop anime streaming client — local-first, no central server, automatic updates.**
 
-A cross-platform desktop anime streaming client for Windows and Linux.
-**KitaWatch does not host any content** — it is a client for third-party
-sources. All content is provided by external services.
+[![Release](https://img.shields.io/github/v/release/F0xyN0xy/KitaWatch?style=for-the-badge)](https://github.com/F0xyN0xy/KitaWatch/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/F0xyN0xy/KitaWatch/total?style=for-the-badge)](https://github.com/F0xyN0xy/KitaWatch/releases)
+[![Build](https://img.shields.io/github/actions/workflow/status/F0xyN0xy/KitaWatch/release.yml?style=for-the-badge&label=BUILD)](https://github.com/F0xyN0xy/KitaWatch/actions/workflows/release.yml)
+[![License](https://img.shields.io/badge/PolyForm_NC-1.0-blue?style=for-the-badge)](./LICENSE.md)
 
-- Metadata: [AniList](https://anilist.co) GraphQL (legal, reliable)
-- Streams: resolver chain over multiple independent provider backends,
-  with automatic fallback
-- Optional AniList login to sync your list (you always log in with
-  *your own* account)
+[![Platform](https://img.shields.io/badge/Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/F0xyN0xy/KitaWatch/releases/latest)
+[![Platform](https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://github.com/F0xyN0xy/KitaWatch/releases/latest)
+[![Tauri](https://img.shields.io/badge/Tauri_2-ffc131?style=for-the-badge&logo=tauri&logoColor=black)](https://v2.tauri.app)
+![Auto Update](https://img.shields.io/badge/Updates-Auto-22c55e?style=for-the-badge)
+
+[![Top Language](https://img.shields.io/github/languages/top/F0xyN0xy/KitaWatch?style=for-the-badge)](https://github.com/F0xyN0xy/KitaWatch)
+[![Languages](https://img.shields.io/github/languages/count/F0xyN0xy/KitaWatch?style=for-the-badge)](https://github.com/F0xyN0xy/KitaWatch)
+[![Code Size](https://img.shields.io/github/languages/code-size/F0xyN0xy/KitaWatch?style=for-the-badge)](https://github.com/F0xyN0xy/KitaWatch)
+[![Repo Size](https://img.shields.io/github/repo-size/F0xyN0xy/KitaWatch?style=for-the-badge)](https://github.com/F0xyN0xy/KitaWatch)
+[![Last Commit](https://img.shields.io/github/last-commit/F0xyN0xy/KitaWatch?style=for-the-badge)](https://github.com/F0xyN0xy/KitaWatch/commits)
+[![Commit Activity](https://img.shields.io/github/commit-activity/m/F0xyN0xy/KitaWatch?style=for-the-badge)](https://github.com/F0xyN0xy/KitaWatch/commits)
+
+[![Stars](https://img.shields.io/github/stars/F0xyN0xy/KitaWatch?style=for-the-badge&logo=github)](https://github.com/F0xyN0xy/KitaWatch/stargazers)
+[![Forks](https://img.shields.io/github/forks/F0xyN0xy/KitaWatch?style=for-the-badge&logo=github)](https://github.com/F0xyN0xy/KitaWatch/forks)
+[![Issues](https://img.shields.io/github/issues/F0xyN0xy/KitaWatch?style=for-the-badge&logo=github)](https://github.com/F0xyN0xy/KitaWatch/issues)
+[![Contributors](https://img.shields.io/github/contributors/F0xyN0xy/KitaWatch?style=for-the-badge&logo=github)](https://github.com/F0xyN0xy/KitaWatch/graphs/contributors)
+
+[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![React](https://img.shields.io/badge/React_18-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev)
+[![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev)
+[![Tailwind](https://img.shields.io/badge/Tailwind_v4-38BDF8?style=for-the-badge&logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
+[![Rust](https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white)](https://www.rust-lang.org)
+[![Python](https://img.shields.io/badge/Python_3.12-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org)
+[![Node](https://img.shields.io/badge/Node-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)](https://nodejs.org)
+
+</div>
+
+---
+
+> **KitaWatch does not host any content.** It is a client for third-party
+> sources; all content is provided by external services. Metadata comes from
+> the public [AniList](https://anilist.co) API.
 
 ## Install
 
 Download the latest installer from
 [**Releases**](https://github.com/F0xyN0xy/KitaWatch/releases/latest):
 
-- **Windows**: `KitaWatch_*_x64-setup.exe`
-- **Linux**: `.deb`, `.rpm`, or `.AppImage`
+| Platform | Package |
+|---|---|
+| Windows | `KitaWatch_*_x64-setup.exe` (or `.msi`) |
+| Linux | `.deb`, `.rpm`, or `.AppImage` |
 
-Everything is bundled — no Python, Node, or configuration needed. The app
+Everything is bundled — **no Python, Node, or configuration needed**. The app
 spawns its own local backends on first launch (give it ~15 seconds).
 
-**Updates are automatic**: the app checks GitHub Releases on launch and
-offers one-click updates (signed and verified).
+**Updates are automatic**: the app checks GitHub Releases on launch and offers
+one-click, cryptographically signed updates.
 
 ## Features
 
 - Spotlight hero, trending / popular / recently-aired rows
 - Instant search with live autocomplete (AniList-direct)
-- Episode grid from official AniList data — always complete
-- HLS player (HLS.js + ArtPlayer): server selector, fatal-error
-  auto-failover, autoplay-next, subtitles (VTT/SRT), PiP, screenshots
+- Episode grids from official AniList data — always complete
+- HLS player (HLS.js + ArtPlayer): server selector, auto-failover on stream
+  errors, **skip intro/outro** (AniSkip), keyboard shortcuts, autoplay-next,
+  subtitles (VTT/SRT), PiP, screenshots
 - Resolver chain: Kuhi → Anivexa → AniKage → Consumet → animepahe →
   optional torrent fallback (Nyaa magnets via WebTorrent)
 - "Provider availability" probe — see which backends carry any anime
+- **"Because you watched…"** recommendations row
 - Continue Watching, My List, watch history
-- AniList OAuth: favorites sync both ways, optional
+- AniList OAuth: favorites sync both ways (you always log in with your own account)
 - Virtualized browse grid, genre filtering, dark cinematic UI
+
+## Architecture
+
+```
+React 18 + TypeScript + Vite + Tailwind v4      (UI, lazy routes)
+        │
+        ├─► kitawatch-kuhi-api   (Python 3.12, :8000)  search · metadata · extraction
+        ├─► kitawatch-proxy      (Python 3.12, :8001)  CORS relay · referer spoof · m3u8 rewrite · OAuth
+        └─► kitawatch-anivexa    (Node,        :4000)  15-provider aggregator
+```
+
+All three backends are vendored in [`api/`](./api) and bundled as standalone
+binaries — every user runs their own instance locally. There is no central
+server. Shell: Tauri v2 (Rust). Updates: minisign-signed.
 
 ## Building from source
 
@@ -52,47 +94,32 @@ Prerequisites: Node 18+, Rust toolchain, Python **3.12+**.
 
 ```bash
 npm install
-npm run setup:api        # clones the Kuhi API sidecar + pip deps
-npm run setup:anivexa    # clones the Anivexa sidecar + npm deps
-npm run tauri dev        # development
+npm run tauri dev          # development (spawns sidecars from api/ sources)
 ```
 
-Release builds bundle the sidecars as standalone binaries:
+Release builds bundle the sidecars as windowless onefile binaries:
 
 ```bash
-npm run build:sidecars   # PyInstaller (python) + pkg (node) -> src-tauri/binaries
-npm run tauri build      # installers in src-tauri/target/release/bundle/
+npm run build:sidecars     # PyInstaller + @yao-pkg/pkg -> src-tauri/binaries
+npm run tauri build        # installers -> src-tauri/target/release/bundle/
 ```
 
-Tagging a version (`npm run release:tag -- X.Y.Z`) pushes a signed release
-built for both platforms by GitHub Actions, with the auto-update manifest.
+Shipping a release:
 
-## Architecture
-
-```
-React 18 + TypeScript + Vite + Tailwind v4   (UI)
-        │
-        ├─► Kuhi API        (Python, port 8000) — search, metadata, extraction
-        ├─► KitaWatch proxy (Python, port 8001) — CORS relay, referer spoofing,
-        │                                            m3u8 rewrite, OAuth exchange
-        └─► Anivexa API     (Node, port 4000)  — 15-provider aggregator
+```bash
+npm run release:tag -- X.Y.Z   # bump, commit, tag, push -> CI builds + signs + publishes
 ```
 
-All three run locally on the user's machine; there is no central server.
-The desktop shell is Tauri v2 (Rust); updates are signed with minisign.
+## Contributing
+
+Issues and pull requests are welcome — see [LICENSE.md](./LICENSE.md)
+(free to use, modify, and contribute; commercial use is not permitted).
 
 ## Legal
 
 KitaWatch is a client application. It does not host, store, or distribute
-video content. Metadata comes from the public AniList API; playback sources
-are resolved from independent third-party providers at runtime. You are
-responsible for complying with the laws of your jurisdiction.
-See [Terms](src/pages/Legal.tsx) in-app for the full disclaimer.
-
-## License
-
-[PolyForm Noncommercial 1.0](./LICENSE.md) — free to use, modify, and
-contribute; commercial use is not permitted.
+video content. You are responsible for complying with the laws of your
+jurisdiction. Full disclaimer in-app (Settings → About / Terms / DMCA).
 
 ## Acknowledgements
 
@@ -100,4 +127,5 @@ contribute; commercial use is not permitted.
 - [Anivexa-API](https://github.com/walterwhite-69/Anivexa-API) — provider aggregator
 - [AniList](https://anilist.co) — metadata & OAuth
 - [AniKage](https://anikage.cc) — provider API
+- [AniSkip](https://aniskip.com) — intro/outro timestamps
 - [Consumet](https://github.com/consumet/consumet-api) — optional fallback

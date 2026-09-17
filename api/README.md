@@ -1,38 +1,33 @@
-# Kuhi API (sidecar)
+# api/ — vendored sidecar sources
 
-KitaWatch embeds no content — it talks to a local **Kuhi API v3** instance
-(FastAPI, https://github.com/aryaniiil/kuhi-anime-api) that searches AniList
-and extracts streams from native providers.
+These are the local backends KitaWatch bundles and spawns on the user's
+machine. They are **vendored** (committed here) so every build — yours, your
+friends', CI's — compiles the exact same code, including local patches.
 
-## How it runs
+| Folder | Upstream | Runtime | Port |
+|---|---|---|---|
+| `anime-api/` | [aryaniiil/kuhi-anime-api](https://github.com/aryaniiil/kuhi-anime-api) | Python 3.12 + FastAPI/uvicorn | 8000 |
+| `anivexa/` | [walterwhite-69/Anivexa-API](https://github.com/walterwhite-69/Anivexa-API) | Node 18+ | 4000 |
+| `../proxy/` | (this repo) | Python 3.12 + FastAPI/httpx | 8001 |
 
-1. **One-time setup** — from the project root:
-   ```bash
-   npm run setup:api   # clones into api/anime-api + pip install -r requirements.txt
-   ```
-   Requires Python 3.8+ on PATH. Non-Windows Python can be forced with the
-   `KITAWATCH_PYTHON` env var.
+## Local patches applied
 
-2. **Automatic (default)** — the Tauri app probes `127.0.0.1:8000` on startup.
-   If nothing answers **and** `api/anime-api` exists, it spawns
-   `python -m uvicorn api:app --port 8000` itself and kills the process when
-   the app exits. Override the repo location with `KITAWATCH_API_DIR`.
+- `anime-api/src/extractor.py` — AniList queries retry 3× with backoff
+  (upstream has none; transient `httpx.ReadError` crashed `/anime/info`).
+- `anime-api/src/config.py` — removed dead `miruro.online` mirror
+  (DNS-fails on every episode lookup).
 
-3. **Manual** — `npm run api` runs the server in your terminal.
+## Refreshing from upstream
 
-4. **Deployed instance** — point Settings → Connection at any reachable URL;
-   if the port probe succeeds the sidecar stays off.
+```bash
+npm run setup:api       # or setup:anivexa
+```
 
-## v3 vs the original spec
+then re-apply the patches above (diff against this folder) and commit.
 
-The API drifted since the spec was written. Phase 2 targets v3:
+## Bundled binaries
 
-- List endpoints return `{ page, perPage, total, hasNextPage, results }`
-- `/anime/episodes/{id}` returns per-provider sub/dub lists — the client
-  flattens and merges them (see `adaptEpisodes` in `src/services/api.ts`)
-- Providers are native Python scrapers: anineko, anizone, anikoto, reanime,
-  aniwaves, kaa, anibd, animegg, mkissa, animeonsen (fastest-wins race;
-  live ranking at `/anime/providers/status`)
-- New endpoints wired: `/anime/filter`, `/anime/genres`, `/anime/recent`,
-  `/anime/upcoming`, `/anime/anime/{id}/recommendations`
-- Extraction supports `?type=sub|dub` and provider forcing
+`npm run build:sidecars` compiles each into a standalone, windowless
+executable (`kitawatch-kuhi-api`, `kitawatch-proxy`, `kitawatch-anivexa`),
+placed in `src-tauri/binaries/` and embedded into installers via Tauri
+`externalBin`. Nothing here needs to be installed on end-user machines.

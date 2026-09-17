@@ -115,6 +115,22 @@ query ($name: String!) {
   }
 }`;
 
+const RECOMMENDATIONS_QUERY = `
+query ($id: Int) {
+  Media(id: $id, type: ANIME) {
+    recommendations(sort: RATING_DESC, perPage: 14) {
+      nodes {
+        mediaRecommendation {
+          id
+          title { english romaji }
+          coverImage { large }
+          format
+        }
+      }
+    }
+  }
+}`;
+
 const SEARCH_QUERY = `
 query ($q: String) {
   Page(page: 1, perPage: 7) {
@@ -172,6 +188,33 @@ export const anilist = {
       releaseDate: m.startDate?.year ? String(m.startDate.year) : undefined,
       studios: m.studios?.nodes?.map((s) => s.name).filter((n): n is string => !!n),
     };
+  },
+
+  /** Top community recommendations for an anime — AniList direct (covers guaranteed). */
+  recommendations: async (id: number | string): Promise<AnimeSummary[]> => {
+    const data = await gql<{
+      Media?: {
+        recommendations?: {
+          nodes?: {
+            mediaRecommendation?: {
+              id?: number;
+              title?: { english?: string; romaji?: string };
+              coverImage?: { large?: string };
+              format?: string;
+            } | null;
+          }[];
+        };
+      };
+    }>(RECOMMENDATIONS_QUERY, { id: Number(id) });
+    return (data.Media?.recommendations?.nodes ?? [])
+      .map((n) => n.mediaRecommendation)
+      .filter((m): m is NonNullable<typeof m> & { id: number } => !!m && typeof m.id === 'number')
+      .map((m) => ({
+        id: m.id,
+        title: m.title?.english ?? m.title?.romaji ?? 'Unknown title',
+        cover: m.coverImage?.large,
+        type: m.format,
+      }));
   },
 
   /** Fast autocomplete — AniList direct (much snappier than the sidecar). */

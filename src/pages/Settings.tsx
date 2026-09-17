@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { LogOut, RefreshCw, Trash2 } from 'lucide-react';
+import { Github, LogOut, MessageSquareWarning, RefreshCw, Trash2 } from 'lucide-react';
 import PageContainer from '@/components/layout/PageContainer';
 import Button from '@/components/ui/Button';
 import Disclaimer from '@/components/ui/Disclaimer';
@@ -252,7 +252,25 @@ export default function Settings() {
       </Section>
 
       <Section title="About">
-        <p className="text-sm text-zinc-400">KitaWatch v0.4.2</p>
+        <p className="text-sm text-zinc-400">KitaWatch v0.5.0</p>
+        <div className="flex flex-wrap gap-2">
+          <a
+            href="https://github.com/F0xyN0xy/KitaWatch/issues"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-ink-800 px-3 py-1.5 text-xs text-zinc-300 ring-1 ring-white/10 transition hover:text-white hover:ring-accent-500/50"
+          >
+            <MessageSquareWarning className="h-3.5 w-3.5" /> Report a bug / Idea
+          </a>
+          <a
+            href="https://github.com/F0xyN0xy/KitaWatch"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-ink-800 px-3 py-1.5 text-xs text-zinc-300 ring-1 ring-white/10 transition hover:text-white hover:ring-accent-500/50"
+          >
+            <Github className="h-3.5 w-3.5" /> GitHub
+          </a>
+        </div>
         <Disclaimer />
       </Section>
     </PageContainer>

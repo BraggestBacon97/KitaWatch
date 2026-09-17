@@ -7,10 +7,10 @@ import Badge from '@/components/ui/Badge';
 import Skeleton from '@/components/ui/Skeleton';
 import ErrorState from '@/components/ui/ErrorState';
 import { api } from '@/services/api';
+import { anilist } from '@/services/anilist';
 import { useHistoryStore } from '@/stores/historyStore';
-import type { HistoryEntry } from '@/stores/historyStore';
 import { useApi } from '@/hooks/useApi';
-import type { SpotlightAnime, Paged, AnimeSummary } from '@/types';
+import type { SpotlightAnime, AnimeSummary } from '@/types';
 
 function Hero({ anime }: { anime: SpotlightAnime }) {
   const navigate = useNavigate();
@@ -63,17 +63,14 @@ export default function Home() {
   }));
 
   const latestWatch = historyEntries[0];
-  const recommendations = useApi(
+  const recommendations = useApi<AnimeSummary[]>(
     () =>
       latestWatch
-        ? api.recommendations(latestWatch.animeId, 1)
-        : Promise.resolve({
-            page: 1,
-            perPage: 0,
-            total: 0,
-            hasNextPage: false,
-            results: [],
-          } as Paged<AnimeSummary>),
+        ? anilist
+            .recommendations(latestWatch.animeId)
+            .catch(() => api.recommendations(latestWatch.animeId, 1).then((p) => p.results))
+        : Promise.resolve(
+            []),
     [latestWatch?.animeId]
   );
 
@@ -82,7 +79,7 @@ export default function Home() {
       {spotlight.error && !spotlight.data ? (
         <ErrorState
           title="Couldn't reach the API"
-          message={`${spotlight.error} Check that the Kuhi API is running, or update the URL in Settings.`}
+          message={`${spotlight.error} The app starts its own backends — give them a few seconds and retry.`}
           onRetry={spotlight.reload}
         />
       ) : spotlight.loading ? (
@@ -95,10 +92,10 @@ export default function Home() {
         <AnimeRow title="Continue Watching" items={continueWatching} />
       )}
 
-      {latestWatch && recommendations.data && (recommendations.data.results || []).length > 0 && (
+      {latestWatch && recommendations.data && recommendations.data.length > 0 && (
         <AnimeRow
           title={`Because you watched ${latestWatch.title}`}
-          items={recommendations.data.results}
+          items={recommendations.data}
           loading={recommendations.loading}
         />
       )}

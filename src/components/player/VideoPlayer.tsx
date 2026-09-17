@@ -5,6 +5,38 @@ import type { StreamSource, SubtitleTrack } from '@/types';
 import { proxy } from '@/services/api';
 import { useIntroSkip } from '@/hooks/useIntroSkip';
 
+/* ASS subtitles via JASSub (libass WASM), loaded from CDN only when needed. */
+const JASSUB_BASE = 'https://cdn.jsdelivr.net/npm/jassub@1/dist/';
+let jassubLoader: Promise<void> | null = null;
+
+function loadJassub(): Promise<void> {
+  if ((window as unknown as { JASSUB?: unknown }).JASSUB) return Promise.resolve();
+  jassubLoader ??= new Promise((resolve, reject) => {
+    const el = document.createElement('script');
+    el.src = `${JASSUB_BASE}jassub.umd.js`;
+    el.onload = () => resolve();
+    el.onerror = () => reject(new Error('Could not load JASSub'));
+    document.head.appendChild(el);
+  });
+  return jassubLoader;
+}
+
+function jassubPlugin(subUrl: string) {
+  return (art: Artplayer) => {
+    const J = (window as unknown as { JASSUB: new (opts: Record<string, unknown>) => { destroy: () => void } }).JASSUB;
+    const instance = new J({
+      video: art.video,
+      subUrl,
+      workerUrl: `${JASSUB_BASE}jassub-worker.js`,
+      wasmUrl: `${JASSUB_BASE}jassub-worker.wasm`,
+      legacyWasmUrl: `${JASSUB_BASE}jassub-worker-legacy.js`,
+      modernWasmUrl: `${JASSUB_BASE}jassub-worker-modern.js`,
+    });
+    art.on('destroy', () => instance.destroy());
+    return { name: 'jassub', instance };
+  };
+}
+
 interface Props {
   source: StreamSource;
   animeId: string | number;
@@ -65,14 +97,10 @@ export default function VideoPlayer({
       fullscreen: true,
       playbackRate: true,
       aspectRatio: true,
-      hotkey: {
-        f: (art: Artplayer) => art.fullscreen.toggle(),
-        s: (art: Artplayer) => art.screenshot(),
-        Space: (art: Artplayer) => art.toggle(),
-        ArrowLeft: (art: Artplayer) => art.seek = art.currentTime - 5,
-        ArrowRight: (art: Artplayer) => art.seek = art.currentTime + 5,
-      },
-      ...(subtitles?.[0]
+      // boolean: enables ArtPlayer's built-in hotkeys
+      // (space/k play-pause, arrows seek, f fullscreen, m mute, ...)
+      hotkey: true,
+      ...(subtitles?.[0] && !subtitles[0].url.includes('.ass')
         ? {
             subtitle: {
               url: subtitles[0].url,
@@ -105,6 +133,15 @@ export default function VideoPlayer({
       },
     });
     artRef.current = art;
+
+    // ASS subtitles: render via JASSub (native tracks only do VTT/SRT)
+    if (subtitles?.[0]?.url.includes('.ass')) {
+      loadJassub()
+        .then(() => art.plugins.add(jassubPlugin(subtitles[0].url)))
+        .catch(() => {
+          /* fall back to no subtitles */
+        });
+    }
 
     // Fatal error on direct mp4 files too
     art.video.addEventListener('error', fail);

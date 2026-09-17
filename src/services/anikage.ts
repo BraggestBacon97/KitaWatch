@@ -15,6 +15,8 @@ function proxyBase(): string {
   return useSettingsStore.getState().proxyBaseUrl.replace(/\/$/, '');
 }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 async function get<T>(path: string): Promise<T> {
   const url = `${API}${path}`;
   try {
@@ -23,9 +25,15 @@ async function get<T>(path: string): Promise<T> {
   } catch {
     // fall through to proxied attempt
   }
-  const res = await fetch(
+  let res = await fetch(
     `${proxyBase()}/cors?u=${encodeURIComponent(url)}&ref=${encodeURIComponent(ORIGIN)}`,
   );
+  if (res.status === 429) {
+    await sleep(2500); // rate-limited — back off and try once more
+    res = await fetch(
+      `${proxyBase()}/cors?u=${encodeURIComponent(url)}&ref=${encodeURIComponent(ORIGIN)}`,
+    );
+  }
   if (!res.ok) throw new Error(`AniKage responded ${res.status}`);
   return (await res.json()) as T;
 }
@@ -68,7 +76,10 @@ export const anikage = {
     const streams: StreamSource[] = [];
     const subtitles: SubtitleTrack[] = [];
 
+    let i = 0;
     for (const srv of info.servers ?? []) {
+      // Stagger probes: firing all servers at once trips AniKage's rate limiter (429)
+      if (i++ > 0) await sleep(400);
       const langs = srv.subTypes?.length ? srv.subTypes : ['sub'];
       const lang = langs.includes(audio) ? audio : langs[0];
       try {

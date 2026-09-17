@@ -3,6 +3,7 @@ import { consumet } from './consumet';
 import { animepahe } from './animepahe';
 import { anivexa } from './anivexa';
 import { anikage } from './anikage';
+import { oneanime } from './oneanime';
 import { useSettingsStore } from '@/stores/settingsStore';
 import type { AudioType, StreamSource, SubtitleTrack } from '@/types';
 
@@ -60,7 +61,17 @@ async function resolveStreamsInner(
     }
   }
 
-  // 3) AniKage — documented JSON API, slug-based, referer-locked CDN
+  // 3) 1anime — captured aggregator API (by AniList ID)
+  try {
+    const r = await oneanime.streams(animeId, episode, audio);
+    if (r.streams.length) {
+      return { streams: prioritize(r.streams), subtitles: r.subtitles };
+    }
+  } catch {
+    // fall through
+  }
+
+  // 4) AniKage — documented JSON API, slug-based, referer-locked CDN
   try {
     const results = await anikage.search(titleQ);
     const best =
@@ -75,7 +86,7 @@ async function resolveStreamsInner(
     // fall through
   }
 
-  // 4) Consumet
+  // 5) Consumet
   if (settings.enableConsumetFallback) {
     try {
       const results = await consumet.search(titleQ);
