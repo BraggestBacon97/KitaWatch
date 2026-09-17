@@ -30,12 +30,9 @@ pub fn run() {
                 app.deep_link().register_all()?;
             }
 
-            // Debug builds spawn from source checkouts; release spawns the
-            // bundled externalBin sidecars.
-            #[cfg(debug_assertions)]
-            let sidecars = api_sidecar::start(None);
-            #[cfg(not(debug_assertions))]
-            let sidecars = api_sidecar::start(Some(app.handle()));
+            // Debug spawns from source checkouts; release spawns the bundled
+            // binaries next to the app exe (windowless on Windows).
+            let sidecars = api_sidecar::start();
 
             app.manage(std::sync::Mutex::new(sidecars));
             Ok(())

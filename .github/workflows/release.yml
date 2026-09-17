@@ -1,5 +1,8 @@
 name: Release
 
+permissions:
+  contents: write
+
 on:
   push:
     tags: ['v*']
@@ -45,6 +48,12 @@ jobs:
           python -m pip install pyinstaller
           python -m pip install -r api/anime-api/requirements.txt
           python -m pip install -r proxy/requirements.txt
+
+      - name: Write bundled .env from secrets
+        shell: bash
+        run: |
+          printf 'ANILIST_CLIENT_ID=%s\nANILIST_CLIENT_SECRET=%s\nANILIST_REDIRECT_URI=kitawatch://auth\n' \
+            "${{ secrets.ANILIST_CLIENT_ID }}" "${{ secrets.ANILIST_CLIENT_SECRET }}" > src-tauri/.env
 
       - name: Build sidecars
         run: npm run build:sidecars

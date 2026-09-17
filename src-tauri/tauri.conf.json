@@ -39,7 +39,8 @@
       "binaries/kuhi-api",
       "binaries/proxy",
       "binaries/anivexa"
-    ]
+    ],
+    "resources": [".env"]
   },
   "plugins": {
     "deep-link": {

@@ -2,11 +2,14 @@
 //!
 //! - Debug builds: spawn from local source checkouts (api/anime-api, proxy,
 //!   api/anivexa) so `git pull` in those folders takes effect immediately.
-//! - Release builds: spawn the bundled binaries via tauri-plugin-shell
-//!   (registered as bundle.externalBin in tauri.conf.json).
+//! - Release builds: spawn the bundled binaries next to the app exe.
+//!   Python sidecars are PyInstaller --noconsole builds (no window).
+//!   Anivexa is spawned via std::process with CREATE_NO_WINDOW because
+//!   tauri's sidecar() cannot pass window-creation flags and pkg always
+//!   produces a console binary.
 //!
-//! The frontend controls *which* URL it talks to via Settings — this only
-//! keeps the default local instances alive and reaps them on exit.
+//! The frontend talks to 127.0.0.1 — this only keeps the local
+//! instances alive and reaps them on exit.
 
 use std::net::TcpStream;
 use std::path::PathBuf;
@@ -16,7 +19,7 @@ use std::time::Duration;
 pub enum Proc {
     Dev(Child),
     #[cfg(not(debug_assertions))]
-    Sidecar(tauri_plugin_shell::process::CommandChild),
+    Bundled(Child),
 }
 
 pub struct Sidecars {
@@ -57,6 +60,12 @@ fn find_dir(env_var: &str, markers: &[&str]) -> Option<PathBuf> {
     }
     None
 }
+
+/// Target-triple suffix used by the sidecar build script (build:sidecars).
+#[cfg(all(target_os = "windows", target_arch = "x86_64"))]
+const SIDE_TRIPLE: &str = "x86_64-pc-windows-msvc";
+#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+const SIDE_TRIPLE: &str = "x86_64-unknown-linux-gnu";
 
 #[cfg(debug_assertions)]
 mod imp {
@@ -140,45 +149,83 @@ mod imp {
 #[cfg(not(debug_assertions))]
 mod imp {
     use super::*;
-    use tauri_plugin_shell::ShellExt;
+    use std::process::Command;
 
-    pub fn start(app: &tauri::AppHandle) -> Vec<(&'static str, Proc)> {
-        let mut procs = Vec::new();
-        for (name, bin, port) in [
-            ("Kuhi API", "kuhi-api", 8000u16),
-            ("proxy", "proxy", 8001),
-            ("Anivexa API", "anivexa", 4000),
-            ] {
-            if port_open(&format!("127.0.0.1:{port}")) {
-                eprintln!("[kitawatch] {name} already running on 127.0.0.1:{port}");
-                continue;
-            }
-            match app.shell().sidecar(bin) {
-                Ok(cmd) => match cmd.spawn() {
-                    Ok((_rx, child)) => {
-                        eprintln!("[kitawatch] started bundled sidecar {bin} on 127.0.0.1:{port}");
-                        procs.push((name, Proc::Sidecar(child)));
-                    }
-                    Err(e) => eprintln!("[kitawatch] failed to start {bin}: {e}"),
-                },
-                Err(e) => eprintln!("[kitawatch] failed to start {bin}: {e}"),
+    /// Resolve a bundled sidecar exe living next to the app binary.
+    fn bundled_exe(name: &str) -> Option<PathBuf> {
+        let mut exe = std::env::current_exe().ok()?;
+        exe.pop(); // drop kitawatch.exe -> install dir
+        let file = format!(
+            "{name}-{SIDE_TRIPLE}{}",
+            if cfg!(windows) { ".exe" } else { "" }
+        );
+        let path = exe.join(&file);
+        if path.exists() {
+            Some(path)
+        } else {
+            eprintln!("[kitawatch] bundled sidecar missing: {file}");
+            None
+        }
+    }
+
+    fn spawn_hidden(cmd: &mut Command) -> Option<Child> {
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+            cmd.creation_flags(CREATE_NO_WINDOW);
+        }
+        match cmd.spawn() {
+            Ok(child) => Some(child),
+            Err(e) => {
+                eprintln!("[kitawatch] failed to spawn sidecar: {e}");
+                None
             }
         }
+    }
+
+    pub fn start() -> Vec<(&'static str, Proc)> {
+        let mut procs = Vec::new();
+
+        if !port_open("127.0.0.1:8000") {
+            if let Some(exe) = bundled_exe("kuhi-api") {
+                if let Some(c) = spawn_hidden(Command::new(exe)) {
+                    eprintln!("[kitawatch] started bundled kuhi-api on 127.0.0.1:8000");
+                    procs.push(("Kuhi API", Proc::Bundled(c)));
+                }
+            }
+        } else {
+            eprintln!("[kitawatch] Kuhi API already running on 127.0.0.1:8000");
+        }
+
+        if !port_open("127.0.0.1:8001") {
+            if let Some(exe) = bundled_exe("proxy") {
+                if let Some(c) = spawn_hidden(Command::new(exe)) {
+                    eprintln!("[kitawatch] started bundled proxy on 127.0.0.1:8001");
+                    procs.push(("proxy", Proc::Bundled(c)));
+                }
+            }
+        } else {
+            eprintln!("[kitawatch] proxy already running on 127.0.0.1:8001");
+        }
+
+        if !port_open("127.0.0.1:4000") {
+            if let Some(exe) = bundled_exe("anivexa") {
+                if let Some(c) = spawn_hidden(Command::new(exe).env("PORT", "4000")) {
+                    eprintln!("[kitawatch] started bundled anivexa on 127.0.0.1:4000");
+                    procs.push(("Anivexa API", Proc::Bundled(c)));
+                }
+            }
+        } else {
+            eprintln!("[kitawatch] Anivexa API already running on 127.0.0.1:4000");
+        }
+
         procs
     }
 }
 
-pub fn start(app: Option<&tauri::AppHandle>) -> Sidecars {
-    #[cfg(debug_assertions)]
+pub fn start() -> Sidecars {
     let procs = imp::start();
-    #[cfg(not(debug_assertions))]
-    let procs = match app {
-        Some(a) => imp::start(a),
-        None => {
-            eprintln!("[kitawatch] release build requires an AppHandle to spawn sidecars");
-            Vec::new()
-        }
-    };
     Sidecars { procs }
 }
 
@@ -190,7 +237,7 @@ pub fn stop(sidecars: &mut Sidecars) {
                 let _ = c.kill();
             }
             #[cfg(not(debug_assertions))]
-            Proc::Sidecar(c) => {
+            Proc::Bundled(mut c) => {
                 let _ = c.kill();
             }
         }
