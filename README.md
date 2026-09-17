@@ -1,90 +1,102 @@
 # KitaWatch
 
+[![Release](https://img.shields.io/github/v/release/F0xyN0xy/KitaWatch?style=flat-square)](https://github.com/F0xyN0xy/KitaWatch/releases/latest)
+[![Build](https://img.shields.io/github/actions/workflow/status/F0xyN0xy/KitaWatch/release.yml?style=flat-square)](https://github.com/F0xyN0xy/KitaWatch/actions/workflows/release.yml)
+[![License](https://img.shields.io/badge/license-PolyForm%20Noncommercial%201.0-blue?style=flat-square)](./LICENSE.md)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-8b5cf6?style=flat-square)]()
+[![Tauri](https://img.shields.io/badge/Tauri-v2-ffc131?style=flat-square&logo=tauri)](https://v2.tauri.app)
+[![React](https://img.shields.io/badge/React-18-61dafb?style=flat-square&logo=react)](https://react.dev)
+
 A cross-platform desktop anime streaming client for Windows and Linux.
 **KitaWatch does not host any content** — it is a client for third-party
-sources (miruro.tv via the Kuhi Anime API). All content is provided by
-external services.
+sources. All content is provided by external services.
 
-Built with Tauri v2 (Rust) + React 18 + TypeScript + Vite + Tailwind CSS v4
+- Metadata: [AniList](https://anilist.co) GraphQL (legal, reliable)
+- Streams: resolver chain over multiple independent provider backends,
+  with automatic fallback
+- Optional AniList login to sync your list (you always log in with
+  *your own* account)
 
-- Zustand + Framer Motion.
+## Install
 
----
+Download the latest installer from
+[**Releases**](https://github.com/F0xyN0xy/KitaWatch/releases/latest):
 
-## Prerequisites
+- **Windows**: `KitaWatch_*_x64-setup.exe`
+- **Linux**: `.deb`, `.rpm`, or `.AppImage`
 
-| Tool | Notes |
-| --- | --- |
-| Node.js 18+ |  |
-| Rust toolchain | `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \\| sh` |
-| Linux system deps | See [Tauri docs](https://v2.tauri.app/start/prerequisites/) (webkit2gtk etc.) |
+Everything is bundled — no Python, Node, or configuration needed. The app
+spawns its own local backends on first launch (give it ~15 seconds).
 
-## Getting started
+**Updates are automatic**: the app checks GitHub Releases on launch and
+offers one-click updates (signed and verified).
+
+## Features
+
+- Spotlight hero, trending / popular / recently-aired rows
+- Instant search with live autocomplete (AniList-direct)
+- Episode grid from official AniList data — always complete
+- HLS player (HLS.js + ArtPlayer): server selector, fatal-error
+  auto-failover, autoplay-next, subtitles (VTT/SRT), PiP, screenshots
+- Resolver chain: Kuhi → Anivexa → AniKage → Consumet → animepahe →
+  optional torrent fallback (Nyaa magnets via WebTorrent)
+- "Provider availability" probe — see which backends carry any anime
+- Continue Watching, My List, watch history
+- AniList OAuth: favorites sync both ways, optional
+- Virtualized browse grid, genre filtering, dark cinematic UI
+
+## Building from source
+
+Prerequisites: Node 18+, Rust toolchain, Python **3.12+**.
 
 ```bash
-# 1. Install JS dependencies
 npm install
-
-# 2. Run the Kuhi API locally (or point Settings → Connection at a deployed instance)
-git clone https://github.com/aryaniiil/anime-api
-cd anime-api
-# follow its README (uvicorn, default http://localhost:8000)
-
-# 3. Run the desktop app (frontend hot-reloads inside the native window)
-npm run tauri dev
+npm run setup:api        # clones the Kuhi API sidecar + pip deps
+npm run setup:anivexa    # clones the Anivexa sidecar + npm deps
+npm run tauri dev        # development
 ```
 
-For frontend-only development (no native window): `npm run dev`, then open
-http://localhost:1420.
+Release builds bundle the sidecars as standalone binaries:
 
----
-
-## Project structure
-
-```javascript
-src/
-├── components/
-│   ├── layout/       Sidebar, Header, PageContainer
-│   ├── anime/        AnimeCard, AnimeRow            (Phase 1 preview of Phase 2 work)
-│   └── ui/           Button, Badge, Skeleton, ErrorState, Disclaimer
-├── pages/
-│   ├── Home.tsx        Spotlight hero + trending/popular rows
-│   ├── Browse.tsx      Trending / Popular / search results with pagination
-│   ├── Detail.tsx      Banner, metadata, episode grid, Add to List
-│   ├── Watch.tsx       Player placeholder (Phase 4)
-│   ├── MyList.tsx      Favorites
-│   └── Settings.tsx    API URL, playback prefs, data management
-├── services/
-│   ├── api.ts        Kuhi API client (typed, timeout, ApiError, configurable base URL)
-│   └── storage.ts    typed localStorage wrapper
-├── stores/
-│   ├── settingsStore.ts   persisted settings (zustand/persist)
-│   └── animeStore.ts      favorites (localStorage now, SQLite in Phase 3)
-├── hooks/
-│   ├── useApi.ts         data fetching with loading/error/retry
-│   └── useDebounce.ts    search input debounce
-├── types/index.ts    API response interfaces
-└── styles/globals.css    Tailwind v4 theme tokens (deep charcoal #0a0a0f + violet accent)
-
-src-tauri/            Tauri v2 Rust shell (window config, capabilities)
+```bash
+npm run build:sidecars   # PyInstaller (python) + pkg (node) -> src-tauri/binaries
+npm run tauri build      # installers in src-tauri/target/release/bundle/
 ```
 
-## Phase status
+Tagging a version (`npm run release:tag -- X.Y.Z`) pushes a signed release
+built for both platforms by GitHub Actions, with the auto-update manifest.
 
-- [x] **Phase 1 — Foundation.** Scaffold, routing (React Router), Zustand stores,
-dark layout shell (sidebar/header/pages), base theme, typed API client stub.
-- [ ] **Phase 2 — API layer polish.** Anime grid, virtualized lists, memoized cards.
-- [ ] **Phase 3 — Detail & episodes.** SQLite watch history via `tauri-plugin-sql`.
-- [ ] **Phase 4 — Player.** HLS.js + ArtPlayer, proxied m3u8/segments, custom controls.
-- [ ] **Phase 5 — Health & fallback.** Pre-flight m3u8 checks, runtime fallback,
-server selector sheet, optional Kuhi API sidecar.
-- [ ] **Phase 6 — Polish.** Hero carousel auto-rotate, keyboard shortcuts, PiP,
-bundle optimization.
+## Architecture
 
-## Notes
+```
+React 18 + TypeScript + Vite + Tailwind v4   (UI)
+        │
+        ├─► Kuhi API        (Python, port 8000) — search, metadata, extraction
+        ├─► KitaWatch proxy (Python, port 8001) — CORS relay, referer spoofing,
+        │                                            m3u8 rewrite, OAuth exchange
+        └─► Anivexa API     (Node, port 4000)  — 15-provider aggregator
+```
 
-- The **API base URL is configurable** (Settings → Connection) because the Kuhi
-API is experimental. Default: `http://localhost:8000`.
-- The sidebar collapses away below `md` — mobile/narrow layouts land in Phase 6.
-- App icon: drop a 1024px PNG at `src-tauri/icons/icon.png`, then
-`npm run tauri icon`.
+All three run locally on the user's machine; there is no central server.
+The desktop shell is Tauri v2 (Rust); updates are signed with minisign.
+
+## Legal
+
+KitaWatch is a client application. It does not host, store, or distribute
+video content. Metadata comes from the public AniList API; playback sources
+are resolved from independent third-party providers at runtime. You are
+responsible for complying with the laws of your jurisdiction.
+See [Terms](src/pages/Legal.tsx) in-app for the full disclaimer.
+
+## License
+
+[PolyForm Noncommercial 1.0](./LICENSE.md) — free to use, modify, and
+contribute; commercial use is not permitted.
+
+## Acknowledgements
+
+- [Kuhi API](https://github.com/aryaniiil/kuhi-anime-api) — extraction backend
+- [Anivexa-API](https://github.com/walterwhite-69/Anivexa-API) — provider aggregator
+- [AniList](https://anilist.co) — metadata & OAuth
+- [AniKage](https://anikage.cc) — provider API
+- [Consumet](https://github.com/consumet/consumet-api) — optional fallback
