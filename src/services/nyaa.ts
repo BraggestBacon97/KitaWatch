@@ -1,3 +1,5 @@
+import { useSettingsStore } from '@/stores/settingsStore';
+
 export interface NyaaResult {
   title: string;
   magnet: string;
@@ -7,27 +9,21 @@ export interface NyaaResult {
 
 const NYAA_SEARCH = 'https://nyaa.si/?q={q}&c=1_2&f=0';
 
-// Nyaa has no CORS headers — reach it through public CORS proxies.
-const PROXIES: ((u: string) => string)[] = [
-  (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-  (u) => `https://corsproxy.io/?url=${encodeURIComponent(u)}`,
-];
-
 /** Search Nyaa (English-translated anime category), sorted by seeders. */
 export async function searchNyaa(query: string): Promise<NyaaResult[]> {
   const target = NYAA_SEARCH.replace('{q}', encodeURIComponent(query));
-  let html: string | null = null;
-  for (const wrap of PROXIES) {
-    try {
-      const res = await fetch(wrap(target));
-      if (!res.ok) continue;
-      html = await res.text();
-      if (html) break;
-    } catch {
-      // try next proxy
-    }
+
+  const proxyBase = useSettingsStore.getState().proxyBaseUrl;
+  const proxyUrl = `${proxyBase}/fetch?u=${encodeURIComponent(target)}&ref=${encodeURIComponent('https://nyaa.si/')}`;
+
+  let html: string;
+  try {
+    const res = await fetch(proxyUrl);
+    if (!res.ok) throw new Error('Proxy failed');
+    html = await res.text();
+  } catch (e) {
+    throw new Error('Nyaa unreachable through local proxy');
   }
-  if (!html) throw new Error('Nyaa unreachable (CORS proxies down?)');
 
   const doc = new DOMParser().parseFromString(html, 'text/html');
   const rows = [...doc.querySelectorAll('tr')].filter((tr) =>

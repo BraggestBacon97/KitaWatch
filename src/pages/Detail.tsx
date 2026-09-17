@@ -1,6 +1,7 @@
 import { Link, useParams } from 'react-router-dom';
 import { Play, Plus, Check, Star } from 'lucide-react';
 import PageContainer from '@/components/layout/PageContainer';
+import AnimeRow from '@/components/anime/AnimeRow';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import Skeleton from '@/components/ui/Skeleton';
@@ -10,7 +11,7 @@ import { anilist } from '@/services/anilist';
 import { useApi } from '@/hooks/useApi';
 import { useAnimeStore } from '@/stores/animeStore';
 import { useAuthStore } from '@/stores/authStore';
-import type { AnimeSummary, EpisodeSummary } from '@/types';
+import type { AnimeSummary, EpisodeSummary, Paged } from '@/types';
 
 /** Metadata comes from AniList (reliable, legal); if it's unreachable we
  *  fall back to the Kuhi API's info endpoint. Episodes always come from
@@ -63,6 +64,21 @@ export default function Detail() {
 
   const a = info.data;
   const favorite = a ? favorites.some((f) => f.id === a.id) : false;
+
+  const recommendations = useApi(
+    () =>
+      a
+        ? api.recommendations(a.id, 1)
+        : Promise.resolve({
+            page: 1,
+            perPage: 0,
+            total: 0,
+            hasNextPage: false,
+            results: [],
+          } as Paged<AnimeSummary>),
+    [a?.id]
+  );
+
   // Episode grid comes from AniList's official count — always reliable.
   // Provider episode endpoints stay out of this path (they rate-limit/403);
   // playback resolution still tries them per-episode.
@@ -232,6 +248,14 @@ export default function Detail() {
             </div>
           )}
         </section>
+
+        {/* Recommendations */}
+        {recommendations.data && (recommendations.data.results || []).length > 0 && (
+          <section>
+            <h2 className="mb-4 text-lg font-semibold text-white">You Might Also Like</h2>
+            <AnimeRow items={recommendations.data.results} loading={recommendations.loading} />
+          </section>
+        )}
       </div>
     </PageContainer>
   );

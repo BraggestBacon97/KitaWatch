@@ -3,9 +3,12 @@ import Artplayer from 'artplayer';
 import Hls from 'hls.js';
 import type { StreamSource, SubtitleTrack } from '@/types';
 import { proxy } from '@/services/api';
+import { useIntroSkip } from '@/hooks/useIntroSkip';
 
 interface Props {
   source: StreamSource;
+  animeId: string | number;
+  episodeNumber: number;
   hasNextEpisode: boolean;
   autoplayNext: boolean;
   subtitles?: SubtitleTrack[];
@@ -18,6 +21,8 @@ interface Props {
 
 export default function VideoPlayer({
   source,
+  animeId,
+  episodeNumber,
   hasNextEpisode,
   autoplayNext,
   subtitles,
@@ -26,8 +31,11 @@ export default function VideoPlayer({
   onEnded,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const artRef = useRef<Artplayer | null>(null);
   const callbacks = useRef({ onFatal, onEnded });
   callbacks.current = { onFatal, onEnded };
+
+  const skipTime = useIntroSkip(animeId, episodeNumber);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -57,13 +65,20 @@ export default function VideoPlayer({
       fullscreen: true,
       playbackRate: true,
       aspectRatio: true,
+      hotkey: {
+        f: (art: Artplayer) => art.fullscreen.toggle(),
+        s: (art: Artplayer) => art.screenshot(),
+        Space: (art: Artplayer) => art.toggle(),
+        ArrowLeft: (art: Artplayer) => art.seek = art.currentTime - 5,
+        ArrowRight: (art: Artplayer) => art.seek = art.currentTime + 5,
+      },
       ...(subtitles?.[0]
         ? {
             subtitle: {
               url: subtitles[0].url,
               type: subtitles[0].url.includes('.srt') ? 'srt' : 'vtt',
               encoding: 'utf-8' as const,
-              style: { color: '#fff', fontSize: '18px' },
+              style: { color: '#fff', fontSize: '24px', textShadow: '0 0 5px #000' },
             },
           }
         : {}),
@@ -89,6 +104,7 @@ export default function VideoPlayer({
         },
       },
     });
+    artRef.current = art;
 
     // Fatal error on direct mp4 files too
     art.video.addEventListener('error', fail);
@@ -105,6 +121,16 @@ export default function VideoPlayer({
   return (
     <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-black ring-1 ring-white/10">
       <div ref={containerRef} className="h-full w-full" />
+      {skipTime && (
+        <button
+          className="absolute bottom-16 right-4 z-10 rounded-full bg-black/60 px-4 py-2 text-sm text-white hover:bg-black/80"
+          onClick={() => {
+            if (artRef.current) artRef.current.currentTime = skipTime.end;
+          }}
+        >
+          Skip Intro
+        </button>
+      )}
     </div>
   );
 }

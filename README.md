@@ -2,6 +2,7 @@
 
 [![Release](https://img.shields.io/github/v/release/F0xyN0xy/KitaWatch?style=flat-square)](https://github.com/F0xyN0xy/KitaWatch/releases/latest)
 [![Build](https://img.shields.io/github/actions/workflow/status/F0xyN0xy/KitaWatch/release.yml?style=flat-square)](https://github.com/F0xyN0xy/KitaWatch/actions/workflows/release.yml)
+![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/F0xyN0xy/KitaWatch/total)
 [![License](https://img.shields.io/badge/license-PolyForm%20Noncommercial%201.0-blue?style=flat-square)](./LICENSE.md)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-8b5cf6?style=flat-square)]()
 [![Tauri](https://img.shields.io/badge/Tauri-v2-ffc131?style=flat-square&logo=tauri)](https://v2.tauri.app)

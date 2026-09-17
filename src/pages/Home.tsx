@@ -8,8 +8,9 @@ import Skeleton from '@/components/ui/Skeleton';
 import ErrorState from '@/components/ui/ErrorState';
 import { api } from '@/services/api';
 import { useHistoryStore } from '@/stores/historyStore';
+import type { HistoryEntry } from '@/stores/historyStore';
 import { useApi } from '@/hooks/useApi';
-import type { SpotlightAnime } from '@/types';
+import type { SpotlightAnime, Paged, AnimeSummary } from '@/types';
 
 function Hero({ anime }: { anime: SpotlightAnime }) {
   const navigate = useNavigate();
@@ -61,6 +62,21 @@ export default function Home() {
     cover: h.cover,
   }));
 
+  const latestWatch = historyEntries[0];
+  const recommendations = useApi(
+    () =>
+      latestWatch
+        ? api.recommendations(latestWatch.animeId, 1)
+        : Promise.resolve({
+            page: 1,
+            perPage: 0,
+            total: 0,
+            hasNextPage: false,
+            results: [],
+          } as Paged<AnimeSummary>),
+    [latestWatch?.animeId]
+  );
+
   return (
     <PageContainer>
       {spotlight.error && !spotlight.data ? (
@@ -77,6 +93,14 @@ export default function Home() {
 
       {continueWatching.length > 0 && (
         <AnimeRow title="Continue Watching" items={continueWatching} />
+      )}
+
+      {latestWatch && recommendations.data && (recommendations.data.results || []).length > 0 && (
+        <AnimeRow
+          title={`Because you watched ${latestWatch.title}`}
+          items={recommendations.data.results}
+          loading={recommendations.loading}
+        />
       )}
 
       <AnimeRow title="Trending Now" items={trending.data?.results} loading={trending.loading} />

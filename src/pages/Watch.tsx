@@ -65,6 +65,8 @@ export default function Watch() {
     <VideoPlayer
       key={`http-${active}-${activeSource.url}`}
       source={activeSource}
+      animeId={id!}
+      episodeNumber={epNum}
       hasNextEpisode={hasNext}
       autoplayNext={autoplayNext}
       subtitles={streams.data?.subtitles}
@@ -82,6 +84,20 @@ export default function Watch() {
     url: torrent.url,
     server: torrent.label,
   };
+
+  const torrentPlayer = torrentSource && (
+    <VideoPlayer
+      key={`torrent-${torrentSource.url}`}
+      source={torrentSource}
+      animeId={id!}
+      episodeNumber={epNum}
+      hasNextEpisode={hasNext}
+      autoplayNext={autoplayNext}
+      poster={info.data?.banner ?? info.data?.cover}
+      onFatal={() => setTorrent(null)}
+      onEnded={() => navigate(`/watch/${id}/${epNum + 1}`)}
+    />
+  );
 
   return (
     <PageContainer className="!space-y-5">
@@ -109,15 +125,7 @@ export default function Watch() {
       ) : activeSource && !exhausted ? (
         httpPlayer
       ) : torrentSource ? (
-        <VideoPlayer
-          key={`torrent-${torrentSource.url}`}
-          source={torrentSource}
-          hasNextEpisode={hasNext}
-          autoplayNext={autoplayNext}
-          poster={info.data?.banner ?? info.data?.cover}
-          onFatal={() => setTorrent(null)}
-          onEnded={() => navigate(`/watch/${id}/${epNum + 1}`)}
-        />
+        torrentPlayer
       ) : sources.length === 0 ? null : (
         <ErrorState
           title="No playable stream found"

@@ -6,7 +6,14 @@ src-tauri/gen
 .DS_Store
 
 # cloned third-party APIs — fetched via npm run setup:api / setup:anivexa
-api/
+# Vendored sidecar sources
+api/anime-api/.git/
+api/anivexa/.git/
+api/anime-api/__pycache__/
+api/anime-api/build/
+api/anime-api/dist/
+api/anivexa/node_modules/
+*.pyc
 
 # python sidecars
 __pycache__/

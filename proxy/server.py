@@ -80,6 +80,14 @@ async def kwik(u: str = Query(...)):
 
 
 # ── generic CORS passthrough ─────────────────────────────────
+@app.get("/fetch")
+async def fetch_url(u: str = Query(...), ref: str = Query(default="")):
+    try:
+        r = await client.get(u, headers=_headers(ref), timeout=15.0)
+    except Exception as e:
+        return JSONResponse({"error": f"upstream failed: {type(e).__name__}"}, status_code=502)
+    return PlainTextResponse(r.text, status_code=r.status_code)
+
 @app.get("/cors")
 async def cors(u: str = Query(...), ref: str = Query(default="")):
     try:
