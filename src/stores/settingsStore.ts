@@ -18,7 +18,6 @@ export const PROVIDER_PRIORITY = [
 ] as const;
 
 interface SettingsState {
-  apiBaseUrl: string;
   defaultQuality: Quality;
   autoplayNext: boolean;
   providerPriority: string[];
@@ -29,7 +28,6 @@ interface SettingsState {
   /** Self-hosted Anivexa-API (Node, by-AniList-ID provider aggregator). */
   anivexaBaseUrl: string;
   enableAnivexa: boolean;
-  setApiBaseUrl: (url: string) => void;
   setDefaultQuality: (q: Quality) => void;
   setAutoplayNext: (v: boolean) => void;
   setProviderPriority: (order: string[]) => void;
@@ -44,7 +42,6 @@ export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
       // Hosted builds override via VITE_* env at build time.
-      apiBaseUrl: import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000',
       defaultQuality: 'auto',
       autoplayNext: true,
       providerPriority: [...PROVIDER_PRIORITY],
@@ -53,7 +50,6 @@ export const useSettingsStore = create<SettingsState>()(
       proxyBaseUrl: import.meta.env.VITE_PROXY_BASE_URL ?? 'http://localhost:8001',
       anivexaBaseUrl: import.meta.env.VITE_ANIVEXA_BASE_URL ?? 'http://localhost:4000',
       enableAnivexa: true,
-      setApiBaseUrl: (apiBaseUrl) => set({ apiBaseUrl }),
       setDefaultQuality: (defaultQuality) => set({ defaultQuality }),
       setAutoplayNext: (autoplayNext) => set({ autoplayNext }),
       setProviderPriority: (providerPriority) => set({ providerPriority }),

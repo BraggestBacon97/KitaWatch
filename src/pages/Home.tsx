@@ -50,7 +50,7 @@ function Hero({ anime }: { anime: SpotlightAnime }) {
 }
 
 export default function Home() {
-  const spotlight = useApi(api.spotlight, []);
+  const spotlight = useApi(api.spotlight, [], { retries: 8 });
   const trending = useApi(() => api.trending(1, 14), []);
   const popular = useApi(() => api.popular(1, 14), []);
   const recent = useApi(() => api.recent(1, 14), []);

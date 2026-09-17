@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Check, ExternalLink, LogOut, RefreshCw, Trash2 } from 'lucide-react';
+import { LogOut, RefreshCw, Trash2 } from 'lucide-react';
 import PageContainer from '@/components/layout/PageContainer';
 import Button from '@/components/ui/Button';
 import Disclaimer from '@/components/ui/Disclaimer';
@@ -39,10 +39,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export default function Settings() {
   const {
-    apiBaseUrl,
     defaultQuality,
     autoplayNext,
-    setApiBaseUrl,
     setDefaultQuality,
     setAutoplayNext,
     consumetBaseUrl,
@@ -51,13 +49,9 @@ export default function Settings() {
     setEnableConsumetFallback,
   } = useSettingsStore();
 
-  const { clientId, accessToken, viewer, setClientId, setAnilistRedirect, clear, anilistRedirect } = useAuthStore();
+  const { accessToken, viewer, clear } = useAuthStore();
   const mergeFavorites = useAnimeStore((s) => s.mergeFavorites);
 
-  const [url, setUrl] = useState(apiBaseUrl);
-  const [savedUrl, setSavedUrl] = useState(false);
-  const [idInput, setIdInput] = useState(clientId);
-  const [redirectInput, setRedirectInput] = useState(anilistRedirect);
   const [connecting, setConnecting] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [note, setNote] = useState('');
@@ -71,24 +65,11 @@ export default function Settings() {
     setTimeout(() => setNote(''), 4000);
   };
 
-  const saveConnection = () => {
-    setApiBaseUrl(url.trim());
-    setSavedUrl(true);
-    setTimeout(() => setSavedUrl(false), 1500);
-  };
-
   const connect = async () => {
-    const id = idInput.trim();
-    if (!id) {
-      flash('Enter your AniList client ID first');
-      return;
-    }
-    setClientId(id);
-    setAnilistRedirect(redirectInput.trim() || 'kitawatch://auth');
     markLoginPending(true);
     setConnecting(true);
     try {
-      await startAniListOAuth(id);
+      await startAniListOAuth();
       flash('Browser opened — approve the login there');
     } catch (e) {
       flash(e instanceof Error ? e.message : 'Could not open the browser');
@@ -165,46 +146,9 @@ export default function Settings() {
         ) : (
           <>
             <p className="text-sm text-zinc-400">
-              Optional — log in to sync your list with AniList. Everything works
-              fine without it.
+              Optional — log in to sync your list with AniList. You log in with
+              your own account; everything works fine without it.
             </p>
-            <div>
-              <label className="mb-1.5 flex items-center gap-1.5 text-sm text-zinc-400">
-                AniList client ID
-                <a
-                  href="https://anilist.co/settings/developer"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center gap-0.5 text-xs text-accent-400 hover:underline"
-                >
-                  get one here <ExternalLink className="h-3 w-3" />
-                </a>
-              </label>
-              <input
-                value={idInput}
-                onChange={(e) => setIdInput(e.target.value)}
-                placeholder="e.g. 12345"
-                inputMode="numeric"
-                className="w-full rounded-lg bg-ink-800 px-3 py-2 text-sm text-zinc-200 ring-1 ring-white/10 focus:outline-none focus:ring-2 focus:ring-accent-500/60"
-              />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm text-zinc-400">
-                Redirect URL (must match the AniList client exactly)
-              </label>
-              <input
-                value={redirectInput}
-                onChange={(e) => setRedirectInput(e.target.value)}
-                spellCheck={false}
-                className="w-full rounded-lg bg-ink-800 px-3 py-2 text-sm text-zinc-200 ring-1 ring-white/10 focus:outline-none focus:ring-2 focus:ring-accent-500/60"
-              />
-              <p className="mt-1.5 text-xs text-zinc-600">
-                <code className="text-zinc-400">kitawatch://auth</code> for the
-                deep-link flow, or{' '}
-                <code className="text-zinc-400">https://anilist.co/api/v2/oauth/pin</code>{' '}
-                for the token-paste flow.
-              </p>
-            </div>
             <div>
               <Button onClick={connect} disabled={connecting}>
                 {connecting ? 'Opening browser...' : 'Connect AniList account'}
@@ -212,14 +156,15 @@ export default function Settings() {
             </div>
             <div className="rounded-lg bg-ink-800/60 p-3 ring-1 ring-white/5">
               <p className="mb-2 text-xs text-zinc-500">
-                Trouble? After approving in the browser, copy the full URL from
-                the address bar (<code>kitawatch://auth?code=...</code>) and paste it here:
+                Trouble? After approving in the browser, paste the callback URL
+                (<code>kitawatch://auth?code=...</code>) — or the raw token from{' '}
+                <code>https://anilist.co/api/v2/oauth/pin</code> — here:
               </p>
               <div className="flex gap-2">
                 <input
                   value={callbackUrl}
                   onChange={(e) => setCallbackUrl(e.target.value)}
-                  placeholder="kitawatch://auth?code=..."
+                  placeholder="kitawatch://auth?code=...  or  token"
                   spellCheck={false}
                   className="flex-1 rounded-lg bg-ink-800 px-3 py-2 text-xs text-zinc-200 ring-1 ring-white/10 focus:outline-none focus:ring-2 focus:ring-accent-500/60"
                 />
@@ -292,34 +237,6 @@ export default function Settings() {
         </p>
       </Section>
 
-      <Section title="Streaming API">
-        <div>
-          <label className="mb-1.5 block text-sm text-zinc-400">
-            Stream extraction API base URL
-          </label>
-          <div className="flex gap-2">
-            <input
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              spellCheck={false}
-              className="flex-1 rounded-lg bg-ink-800 px-3 py-2 text-sm text-zinc-200 ring-1 ring-white/10 focus:outline-none focus:ring-2 focus:ring-accent-500/60"
-            />
-            <Button onClick={saveConnection} disabled={!url.trim()}>
-              {savedUrl ? (
-                <>
-                  <Check className="h-4 w-4" /> Saved
-                </>
-              ) : (
-                'Save'
-              )}
-            </Button>
-          </div>
-          <p className="mt-1.5 text-xs text-zinc-600">
-            Only touch this if you run a different extraction API instance.
-          </p>
-        </div>
-      </Section>
-
       <Section title="Data">
         <div className="flex items-center justify-between gap-4">
           <div>
@@ -335,7 +252,7 @@ export default function Settings() {
       </Section>
 
       <Section title="About">
-        <p className="text-sm text-zinc-400">KitaWatch v0.4.0</p>
+        <p className="text-sm text-zinc-400">KitaWatch v0.4.2</p>
         <Disclaimer />
       </Section>
     </PageContainer>

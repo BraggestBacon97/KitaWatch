@@ -145,10 +145,10 @@ mod imp {
     pub fn start(app: &tauri::AppHandle) -> Vec<(&'static str, Proc)> {
         let mut procs = Vec::new();
         for (name, bin, port) in [
-            ("Kuhi API", "binaries/kuhi-api", 8000u16),
-            ("proxy", "binaries/proxy", 8001),
-            ("Anivexa API", "binaries/anivexa", 4000),
-        ] {
+            ("Kuhi API", "kuhi-api", 8000u16),
+            ("proxy", "proxy", 8001),
+            ("Anivexa API", "anivexa", 4000),
+            ] {
             if port_open(&format!("127.0.0.1:{port}")) {
                 eprintln!("[kitawatch] {name} already running on 127.0.0.1:{port}");
                 continue;

@@ -3,6 +3,8 @@ import { invoke } from '@tauri-apps/api/core';
 import { useAuthStore, DEFAULT_REDIRECT } from '@/stores/authStore';
 
 const API_URL = 'https://graphql.anilist.co';
+/** Public OAuth client ID — identifies the app; users still log in with THEIR account. */
+export const ANILIST_CLIENT_ID = '34664';
 export const OAUTH_AUTHORIZE = 'https://anilist.co/api/v2/oauth/authorize';
 /** Redirect URI — must exactly match the AniList client's registered URL. */
 export function getRedirectUri(): string {
@@ -236,9 +238,9 @@ export const anilist = {
 };
 
 /** Open the AniList authorize page in the system browser. */
-export async function startAniListOAuth(clientId: string): Promise<void> {
+export async function startAniListOAuth(): Promise<void> {
   const url =
-    `${OAUTH_AUTHORIZE}?client_id=${encodeURIComponent(clientId)}` +
+    `${OAUTH_AUTHORIZE}?client_id=${encodeURIComponent(ANILIST_CLIENT_ID)}` +
     `&redirect_uri=${encodeURIComponent(getRedirectUri())}&response_type=code`;
   try {
     const { openUrl } = await import('@tauri-apps/plugin-opener');
@@ -255,11 +257,11 @@ export async function startAniListOAuth(clientId: string): Promise<void> {
  * fallback so the installed app works where no .env exists.
  */
 export async function exchangeAuthCode(code: string): Promise<string> {
-  const { clientId, anilistRedirect } = useAuthStore.getState();
+  const { anilistRedirect } = useAuthStore.getState();
   try {
     return await invoke<string>('exchange_anilist_token', {
       code,
-      clientId: clientId || null,
+      clientId: ANILIST_CLIENT_ID,
       clientSecret: null,
       redirectUri: anilistRedirect || null,
     });

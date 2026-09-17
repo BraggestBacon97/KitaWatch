@@ -11,6 +11,9 @@ import type {
   SpotlightAnime,
 } from '@/types';
 
+/** The app always talks to its own bundled sidecars. */
+const API_BASE_URL = 'http://localhost:8000';
+
 const DEFAULT_TIMEOUT_MS = 12_000;
 
 export class ApiError extends Error {
@@ -28,7 +31,7 @@ async function request<T>(
   params?: Record<string, string | number | boolean | undefined>,
   timeoutMs = DEFAULT_TIMEOUT_MS,
 ): Promise<T> {
-  const base = useSettingsStore.getState().apiBaseUrl.replace(/\/$/, '');
+  const base = API_BASE_URL;
   const url = new URL(`${base}${path}`);
   if (params) {
     for (const [key, value] of Object.entries(params)) {
