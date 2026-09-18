@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en" class="scroll-smooth">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<title>KitaWatch — Desktop Anime Streaming</title>
+<meta name="description" content="KitaWatch: a local-first, cross-platform desktop anime streaming client. No accounts, no servers, no ads — automatic updates." />
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@600&display=swap" rel="stylesheet" />
+<style>
+  :root { --accent:#9333ea; --accent2:#c084fc; }
+  body { font-family:'Inter',system-ui,sans-serif; background:#0a0a0f; color:#e4e4e7; }
+  .glow { text-shadow:0 0 30px rgba(168,85,247,.55), 0 0 80px rgba(168,85,247,.25); }
+  .card { background:rgba(20,20,29,.7); border:1px solid rgba(255,255,255,.06); backdrop-filter: blur(12px); }
+  .btn-primary { background:linear-gradient(135deg,#9333ea,#c026d3); box-shadow:0 8px 30px rgba(147,51,234,.35); transition:.2s; }
+  .btn-primary:hover { transform:translateY(-2px); box-shadow:0 12px 40px rgba(147,51,234,.5); }
+  .btn-ghost { border:1px solid rgba(255,255,255,.12); transition:.2s; }
+  .btn-ghost:hover { border-color:rgba(192,132,252,.6); color:#fff; }
+  .grid-bg { background-image:radial-gradient(rgba(168,85,247,.12) 1px, transparent 1px); background-size:28px 28px; }
+  ::selection { background:rgba(168,85,247,.4); }
+</style>
+</head>
+<body class="antialiased">
+
+<!-- NAV -->
+<nav class="fixed top-0 z-50 w-full border-b border-white/5 bg-[#0a0a0f]/80 backdrop-blur">
+  <div class="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
+    <span class="text-lg font-extrabold tracking-tight text-white">Kita<span class="text-purple-400">Watch</span></span>
+    <div class="flex items-center gap-5 text-sm">
+      <a href="#features" class="text-zinc-400 hover:text-white">Features</a>
+      <a href="#download" class="text-zinc-400 hover:text-white">Download</a>
+      <a href="https://github.com/F0xyN0xy/KitaWatch" target="_blank" rel="noreferrer" class="text-zinc-400 hover:text-white">GitHub</a>
+      <a href="https://github.com/F0xyN0xy/KitaWatch/issues" target="_blank" rel="noreferrer"
+         class="rounded-lg border border-white/10 px-3 py-1.5 text-zinc-300 hover:border-purple-500/60 hover:text-white">Report a bug</a>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<header class="grid-bg relative overflow-hidden pt-16">
+  <div class="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-[#0a0a0f]/40 to-[#0a0a0f]"></div>
+  <div class="relative mx-auto grid max-w-6xl items-center gap-10 px-6 pb-20 pt-14 lg:grid-cols-[1.2fr_1fr]">
+    <div>
+      <p class="mb-4 inline-flex items-center gap-2 rounded-full border border-purple-500/30 bg-purple-500/10 px-3 py-1 text-xs font-medium text-purple-300">
+        <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
+        v<span id="ver">…</span> — latest release
+      </p>
+      <h1 class="glow text-5xl font-extrabold leading-tight text-white sm:text-6xl">
+        Anime, <span class="text-purple-400">locally.</span>
+      </h1>
+      <p class="mt-5 max-w-xl text-lg leading-relaxed text-zinc-400">
+        A desktop anime streaming client for Windows and Linux. No central servers, no accounts,
+        no ads — every backend runs on <em class="text-zinc-200 not-italic">your</em> machine.
+        Streams resolve from a chain of independent providers with automatic failover,
+        and the app keeps itself updated.
+      </p>
+      <div class="mt-8 flex flex-wrap items-center gap-3">
+        <a id="dl-main" href="#download"
+           class="btn-primary inline-flex items-center gap-2.5 rounded-xl px-6 py-3.5 font-semibold text-white">
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M3 12h3v7H3zm4.5-7h3v14h-3zM12 5h3v14h-3zm4.5 4h3v10h-3z"/></svg>
+          Download for Windows
+        </a>
+        <a href="#download" class="btn-ghost inline-flex items-center gap-2.5 rounded-xl px-6 py-3.5 font-semibold text-zinc-200">
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15H9v-6h2v6zm4 0h-2V7h2v10z"/></svg>
+          Linux builds
+        </a>
+      </div>
+      <p class="mt-4 text-xs text-zinc-500">Free · Open source (non-commercial) · Auto-updating · ~15 s first-launch setup</p>
+    </div>
+    <div class="relative hidden lg:block">
+      <img src="banner.png" alt="KitaWatch" class="w-full rounded-2xl border border-white/10 shadow-2xl shadow-purple-900/40" />
+      <div class="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-purple-500/20"></div>
+    </div>
+  </div>
+</header>
+
+<!-- FEATURES -->
+<section id="features" class="mx-auto max-w-6xl px-6 py-20">
+  <h2 class="text-3xl font-bold text-white">Everything runs on <span class="text-purple-400">your</span> machine</h2>
+  <p class="mt-2 max-w-2xl text-zinc-400">KitaWatch ships with its own backends bundled — nothing to install, nothing to configure, nothing phoning home.</p>
+
+  <div class="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div class="card rounded-2xl p-6">
+      <h3 class="font-semibold text-white">Seven-backend resolver</h3>
+      <p class="mt-2 text-sm leading-relaxed text-zinc-400">Kuhi, Anivexa, 1anime, AniKage, Consumet, animepahe and an optional torrent fallback — if one source fails, the next one catches.</p>
+    </div>
+    <div class="card rounded-2xl p-6">
+      <h3 class="font-semibold text-white">A real player</h3>
+      <p class="mt-2 text-sm leading-relaxed text-zinc-400">HLS with server switching, fatal-error auto-failover, skip intro/outro (AniSkip), keyboard shortcuts, styled ASS subtitles, PiP and screenshots.</p>
+    </div>
+    <div class="card rounded-2xl p-6">
+      <h3 class="font-semibold text-white">AniList, your way</h3>
+      <p class="mt-2 text-sm leading-relaxed text-zinc-400">Optional login to sync favorites both ways — you always authenticate with your own account. Works fully offline of it, too.</p>
+    </div>
+    <div class="card rounded-2xl p-6">
+      <h3 class="font-semibold text-white">Local-first &amp; private</h3>
+      <p class="mt-2 text-sm leading-relaxed text-zinc-400">All backends run on localhost. No analytics, no telemetry, no accounts. Your list and history never leave your device.</p>
+    </div>
+    <div class="card rounded-2xl p-6">
+      <h3 class="font-semibold text-white">Self-updating</h3>
+      <p class="mt-2 text-sm leading-relaxed text-zinc-400">Cryptographically signed updates from GitHub Releases. Install once — stay current forever.</p>
+    </div>
+    <div class="card rounded-2xl p-6">
+      <h3 class="font-semibold text-white">See what works</h3>
+      <p class="mt-2 text-sm leading-relaxed text-zinc-400">A built-in provider probe shows which backends carry any anime before you press play.</p>
+    </div>
+  </div>
+</section>
+
+<!-- DOWNLOAD -->
+<section id="download" class="border-y border-white/5 bg-[#0d0d14] py-20">
+  <div class="mx-auto max-w-6xl px-6">
+    <h2 class="text-3xl font-bold text-white">Download</h2>
+    <p class="mt-2 text-zinc-400">Latest release: <span class="font-mono text-purple-300" id="ver2">…</span> · installs are fully self-contained.</p>
+
+    <div class="mt-10 grid gap-6 md:grid-cols-2">
+      <!-- Windows -->
+      <div class="card rounded-2xl p-7">
+        <div class="flex items-center gap-3">
+          <svg class="h-8 w-8 text-sky-400" viewBox="0 0 24 24" fill="currentColor"><path d="M0 3.45 9.75 2.1v9.45H0zM11 1.9l13-1.9v11.35H11zM0 12.6h9.75v9.45L0 20.7zM11 12.6h13V22l-13-1.9z"/></svg>
+          <h3 class="text-xl font-bold text-white">Windows</h3>
+        </div>
+        <p class="mt-2 text-sm text-zinc-400">Windows 10/11 · 64-bit</p>
+        <div class="mt-5 space-y-2.5">
+          <a data-asset="setup" href="#" class="btn-primary flex items-center justify-between rounded-xl px-5 py-3.5 font-semibold text-white">
+            <span>Setup.exe <span class="ml-1 text-xs font-normal text-purple-200">recommended</span></span><span class="text-xs opacity-80">NSIS installer</span>
+          </a>
+          <a data-asset="msi" href="#" class="btn-ghost flex items-center justify-between rounded-xl px-5 py-3 text-sm font-medium text-zinc-200">
+            <span>MSI package</span><span class="text-xs text-zinc-500">enterprise / silent install</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Linux -->
+      <div class="card rounded-2xl p-7">
+        <div class="flex items-center gap-3">
+          <svg class="h-8 w-8 text-amber-300" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15H9v-6h2v6zm4 0h-2V7h2v10z"/></svg>
+          <h3 class="text-xl font-bold text-white">Linux</h3>
+        </div>
+        <p class="mt-2 text-sm text-zinc-400">Ubuntu 22.04+ · Debian 12+ · Fedora · AppImage runs anywhere</p>
+        <div class="mt-5 space-y-2.5">
+          <a data-asset="deb" href="#" class="btn-primary flex items-center justify-between rounded-xl px-5 py-3.5 font-semibold text-white">
+            <span>.deb</span><span class="text-xs opacity-80">Ubuntu / Debian</span>
+          </a>
+          <a data-asset="appimage" href="#" class="btn-ghost flex items-center justify-between rounded-xl px-5 py-3 text-sm font-medium text-zinc-200">
+            <span>AppImage</span><span class="text-xs text-zinc-500">portable — no install</span>
+          </a>
+          <a data-asset="rpm" href="#" class="btn-ghost flex items-center justify-between rounded-xl px-5 py-3 text-sm font-medium text-zinc-200">
+            <span>.rpm</span><span class="text-xs text-zinc-500">Fedora / RHEL</span>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <p class="mt-6 text-xs text-zinc-500">
+      Installing <span class="text-zinc-400">0.5.1 or earlier</span>? Grab the newest installer once — releases from 0.5.3 onward update themselves automatically.
+      All downloads are served directly from <a class="text-purple-400 hover:underline" href="https://github.com/F0xyN0xy/KitaWatch/releases" target="_blank" rel="noreferrer">GitHub Releases</a> and are minisign-verified by the app.
+    </p>
+  </div>
+</section>
+
+<!-- PRIVACY / LEGAL -->
+<section class="mx-auto max-w-6xl px-6 py-16">
+  <div class="grid gap-8 md:grid-cols-3">
+    <div>
+      <h3 class="font-semibold text-white">No servers of ours</h3>
+      <p class="mt-2 text-sm text-zinc-400">KitaWatch is a client application. It does not host, store, or distribute content; playback sources are resolved from third parties at runtime on your device.</p>
+    </div>
+    <div>
+      <h3 class="font-semibold text-white">Honest license</h3>
+      <p class="mt-2 text-sm text-zinc-400">Free to use and contribute, forever. PolyForm Noncommercial 1.0 — commercial use is not permitted. Source is fully open.</p>
+    </div>
+    <div>
+      <h3 class="font-semibold text-white">Talk to us</h3>
+      <p class="mt-2 text-sm text-zinc-400">Bugs, ideas, provider requests:
+        <a class="text-purple-400 hover:underline" href="https://github.com/F0xyN0xy/KitaWatch/issues" target="_blank" rel="noreferrer">GitHub Issues</a>.</p>
+    </div>
+  </div>
+</section>
+
+<footer class="border-t border-white/5 py-8 text-center text-xs text-zinc-600">
+  KitaWatch · <a class="hover:text-zinc-400" href="https://github.com/F0xyN0xy/KitaWatch" target="_blank" rel="noreferrer">GitHub</a> ·
+  <a class="hover:text-zinc-400" href="https://github.com/F0xyN0xy/KitaWatch/blob/main/LICENSE.md" target="_blank" rel="noreferrer">License</a> ·
+  Not affiliated with any content provider. You are responsible for complying with the laws of your jurisdiction.
+</footer>
+
+<script>
+// Resolve download links from the latest GitHub release (no hardcoded versions)
+const REPO = 'F0xyN0xy/KitaWatch';
+const MATCHERS = {
+  setup:    /x64-setup\.exe$/i,
+  msi:      /x64_en-US\.msi$/i,
+  deb:      /amd64\.deb$/i,
+  rpm:      /x86_64\.rpm$/i,
+  appimage: /amd64\.AppImage$/i,
+};
+fetch(`https://api.github.com/repos/${REPO}/releases/latest`)
+  .then((r) => r.json())
+  .then((rel) => {
+    document.getElementById('ver').textContent = rel.tag_name.replace(/^v/, '');
+    document.getElementById('ver2').textContent = rel.tag_name;
+    for (const [key, re] of Object.entries(MATCHERS)) {
+      const asset = (rel.assets || []).find((a) => re.test(a.name));
+      document.querySelectorAll(`[data-asset="${key}"]`).forEach((el) => {
+        if (asset) { el.href = asset.browser_download_url; el.target = '_blank'; el.rel = 'noreferrer'; }
+        else el.classList.add('opacity-40', 'pointer-events-none');
+      });
+    }
+    const setup = (rel.assets || []).find((a) => MATCHERS.setup.test(a.name));
+    if (setup) document.getElementById('dl-main').href = setup.browser_download_url;
+  })
+  .catch(() => {
+    document.getElementById('ver').textContent = '?';
+    document.getElementById('ver2').textContent = 'see GitHub Releases';
+  });
+</script>
+</body>
+</html>
