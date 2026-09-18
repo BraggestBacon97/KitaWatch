@@ -1,6 +1,9 @@
-// CJS conversion of upstream smartcache.js — pkg cannot transform the ESM
-// original (top-level await + exports). Behavior identical.
+// Vendored/patched smartcache.js — pure ESM, no top-level await, so pkg
+// can bytecode-compile it cleanly (top-level await + export together
+// breaks pkg's ESM->CJS transformer).
 // Patch: KitaWatch vendored.
+
+import { createRequire } from "node:module";
 
 function readEnv(name) {
   try {
@@ -72,13 +75,18 @@ let diskRead  = () => null;
 let diskWrite = () => {};
 let diskDel   = () => {};
 
+let CACHE_DIR = null;
 if (IS_LOCAL_NODE) {
+  // Synchronous require via createRequire — no top-level await, so this
+  // stays compatible with pkg's bytecode compilation step.
+  const require = createRequire(import.meta.url);
   const { readFileSync, mkdirSync, existsSync } = require("node:fs");
   const { writeFile, unlink }                   = require("node:fs/promises");
   const { join, dirname }                        = require("node:path");
+  const { fileURLToPath }                        = require("node:url");
 
-  const __dir    = __dirname;
-  const CACHE_DIR = join(__dir, ".cache");
+  const __dir    = dirname(fileURLToPath(import.meta.url));
+  CACHE_DIR = join(__dir, ".cache");
   try { mkdirSync(CACHE_DIR, { recursive: true }); } catch {}
 
   const keyToPath = (key) =>
@@ -239,20 +247,11 @@ const WATCH_TTL         = 3 * HOUR;
 const SHOW_IDENTITY_TTL = 24 * HOUR;
 const THIRTY_DAYS       = 30 * DAY;
 
-exports._CACHE_ENABLED = _CACHE_ENABLED;
-exports.get = get;
-exports.getAsync = getAsync;
-exports.set = set;
-exports.setAsync = setAsync;
-exports.isFresh = isFresh;
-exports.needsRefresh = needsRefresh;
-exports.del = del;
-exports.delAsync = delAsync;
-exports.delByPrefix = delByPrefix;
-exports.delByPrefixAsync = delByPrefixAsync;
-exports.episodeTTL = episodeTTL;
-exports.mapTTL = mapTTL;
-exports.WATCH_TTL = WATCH_TTL;
-exports.SHOW_IDENTITY_TTL = SHOW_IDENTITY_TTL;
-exports.THIRTY_DAYS = THIRTY_DAYS;
-module.exports = exports;
+export {
+  _CACHE_ENABLED,
+  get, getAsync, set, setAsync,
+  isFresh, needsRefresh,
+  del, delAsync, delByPrefix, delByPrefixAsync,
+  episodeTTL, mapTTL,
+  WATCH_TTL, SHOW_IDENTITY_TTL, THIRTY_DAYS,
+};
