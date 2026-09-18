@@ -1,4 +1,7 @@
-// Reads process.env safely — process may be undefined/limited on edge runtimes.
+// CJS conversion of upstream smartcache.js — pkg cannot transform the ESM
+// original (top-level await + exports). Behavior identical.
+// Patch: KitaWatch vendored.
+
 function readEnv(name) {
   try {
     return typeof process !== "undefined" ? process.env?.[name] : undefined;
@@ -17,8 +20,7 @@ function envInt(name, fallback) {
   return raw !== undefined && raw !== "" && Number.isFinite(n) && n > 0 ? n : fallback;
 }
 
-// change CACHE_ENABLED=true in .env and set your upstash credentials to enable caching
-export const _CACHE_ENABLED = envBool("CACHE_ENABLED", false);
+const _CACHE_ENABLED = envBool("CACHE_ENABLED", false);
 
 const IS_LOCAL_NODE = (() => {
   try {
@@ -30,12 +32,10 @@ const IS_LOCAL_NODE = (() => {
   } catch { return false; }
 })();
 
-const UPSTASH_REDIS_REST_URL = readEnv("UPSTASH_REDIS_REST_URL") ?? ""; //get it from upstash.com
+const UPSTASH_REDIS_REST_URL = readEnv("UPSTASH_REDIS_REST_URL") ?? "";
 const UPSTASH_REDIS_REST_TOKEN = readEnv("UPSTASH_REDIS_REST_TOKEN") ?? "";
 const REDIS_ENABLED = Boolean(UPSTASH_REDIS_REST_URL && UPSTASH_REDIS_REST_TOKEN);
 
-// DEFAULT_REDIS_TTL is in seconds (default 900s / 15min) — used as the fallback expiry
-// for Redis writes that don't carry their own computed ttl (see redisWrite below).
 const REDIS_TTL_MS = envInt("DEFAULT_REDIS_TTL", 900) * 1000;
 
 function encodeEntry(entry) {
@@ -73,12 +73,11 @@ let diskWrite = () => {};
 let diskDel   = () => {};
 
 if (IS_LOCAL_NODE) {
-  const { readFileSync, mkdirSync, existsSync } = await import("node:fs");
-  const { writeFile, unlink }                   = await import("node:fs/promises");
-  const { join, dirname }                        = await import("node:path");
-  const { fileURLToPath }                        = await import("node:url");
+  const { readFileSync, mkdirSync, existsSync } = require("node:fs");
+  const { writeFile, unlink }                   = require("node:fs/promises");
+  const { join, dirname }                        = require("node:path");
 
-  const __dir    = dirname(fileURLToPath(import.meta.url));
+  const __dir    = __dirname;
   const CACHE_DIR = join(__dir, ".cache");
   try { mkdirSync(CACHE_DIR, { recursive: true }); } catch {}
 
@@ -115,7 +114,7 @@ function evict() {
   }
 }
 
-export function get(key) {
+function get(key) {
   if (!_CACHE_ENABLED) return null;
   let e = mem.get(key);
   if (e) return e;
@@ -128,7 +127,7 @@ export function get(key) {
   return e;
 }
 
-export async function getAsync(key) {
+async function getAsync(key) {
   if (!_CACHE_ENABLED) return null;
   let e = get(key);
   if (e) return e;
@@ -167,25 +166,25 @@ function setLocal(key, data, ttlMs, refreshAfterMs) {
   return entry;
 }
 
-export function set(key, data, ttlMs, refreshAfterMs) {
+function set(key, data, ttlMs, refreshAfterMs) {
   if (!_CACHE_ENABLED) return { data, cachedAt: Date.now(), ttl: ttlMs, refreshAfter: refreshAfterMs ?? ttlMs, expiresAt: Date.now() + ttlMs };
   const entry = setLocal(key, data, ttlMs, refreshAfterMs);
   redisWrite(key, entry).catch(() => {});
   return entry;
 }
 
-export async function setAsync(key, data, ttlMs, refreshAfterMs) {
+async function setAsync(key, data, ttlMs, refreshAfterMs) {
   if (!_CACHE_ENABLED) return { data, cachedAt: Date.now(), ttl: ttlMs, refreshAfter: refreshAfterMs ?? ttlMs, expiresAt: Date.now() + ttlMs };
   const entry = setLocal(key, data, ttlMs, refreshAfterMs);
   await redisWrite(key, entry);
   return entry;
 }
 
-export function isFresh(entry) {
+function isFresh(entry) {
   return entry !== null && entry !== undefined && Date.now() < entry.expiresAt;
 }
 
-export function needsRefresh(entry) {
+function needsRefresh(entry) {
   return !entry || Date.now() - entry.cachedAt > entry.refreshAfter;
 }
 
@@ -194,23 +193,23 @@ function delLocal(key) {
   diskDel(key);
 }
 
-export function del(key) {
+function del(key) {
   delLocal(key);
   redisCommand(["DEL", key]).catch(() => {});
 }
 
-export async function delAsync(key) {
+async function delAsync(key) {
   delLocal(key);
   await redisCommand(["DEL", key]);
 }
 
-export function delByPrefix(prefix) {
+function delByPrefix(prefix) {
   for (const k of [...mem.keys()]) {
     if (k.startsWith(prefix)) mem.delete(k);
   }
 }
 
-export async function delByPrefixAsync(prefix) {
+async function delByPrefixAsync(prefix) {
   delByPrefix(prefix);
   const keys = await redisCommand(["KEYS", `${prefix}*`]);
   if (Array.isArray(keys) && keys.length) {
@@ -222,7 +221,7 @@ const MIN  = 60_000;
 const HOUR = 60 * MIN;
 const DAY  = 24 * HOUR;
 
-export function episodeTTL(status) {
+function episodeTTL(status) {
   switch (status) {
     case "FINISHED":         return [7 * DAY,   Infinity];
     case "RELEASING":        return [2 * HOUR,  15 * MIN];
@@ -232,10 +231,19 @@ export function episodeTTL(status) {
   }
 }
 
-export function mapTTL(status) {
+function mapTTL(status) {
   return status === "FINISHED" ? 30 * DAY : 12 * HOUR;
 }
 
-export const WATCH_TTL         = 3 * HOUR;
-export const SHOW_IDENTITY_TTL = 24 * HOUR;
-export const THIRTY_DAYS       = 30 * DAY;
+const WATCH_TTL         = 3 * HOUR;
+const SHOW_IDENTITY_TTL = 24 * HOUR;
+const THIRTY_DAYS       = 30 * DAY;
+
+module.exports = {
+  _CACHE_ENABLED,
+  get, getAsync, set, setAsync,
+  isFresh, needsRefresh,
+  del, delAsync, delByPrefix, delByPrefixAsync,
+  episodeTTL, mapTTL,
+  WATCH_TTL, SHOW_IDENTITY_TTL, THIRTY_DAYS,
+};

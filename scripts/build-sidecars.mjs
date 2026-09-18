@@ -56,13 +56,13 @@ if (existsSync(anivexa)) {
   console.log('[sidecars] pkg: anivexa (node20, no-bytecode) ...');
   try {
     execSync(
-      `npx -y @yao-pkg/pkg server.js --no-bytecode --targets node20-${process.platform === 'win32' ? 'win' : 'linux'}-x64 --output "${target}"`,
+      `npx -y @yao-pkg/pkg server.js --targets node20-${process.platform === 'win32' ? 'win' : 'linux'}-x64 --output "${target}"`,
       { cwd: anivexa, stdio: 'inherit', shell: true },
     );
   } catch {
     console.log('[sidecars] node20 cache miss — trying node22 ...');
     execSync(
-      `npx -y @yao-pkg/pkg server.js --no-bytecode --targets node22-${process.platform === 'win32' ? 'win' : 'linux'}-x64 --output "${target}"`,
+      `npx -y @yao-pkg/pkg server.js --targets node22-${process.platform === 'win32' ? 'win' : 'linux'}-x64 --output "${target}"`,
       { cwd: anivexa, stdio: 'inherit', shell: true },
     );
   }

@@ -16,6 +16,8 @@ friends', CI's — compiles the exact same code, including local patches.
   (upstream has none; transient `httpx.ReadError` crashed `/anime/info`).
 - `anime-api/src/config.py` — removed dead `miruro.online` mirror
   (DNS-fails on every episode lookup).
+- `anivexa/core/smartcache.js` — converted ESM→CJS (pkg cannot
+  transform top-level await; required for the bundled exe).
 
 ## Refreshing from upstream
 
