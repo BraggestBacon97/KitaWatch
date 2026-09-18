@@ -127,12 +127,12 @@ export default function Sidebar() {
             rel="noreferrer"
             className="text-zinc-500 hover:text-zinc-300"
           >
-            kitawatch.nx.kg
+            kitawatch.free.nf
           </a>
         </div>
         <Disclaimer />
         <p className="text-[10px] uppercase tracking-widest text-zinc-700">
-          v0.5.3
+          v0.5.4
         </p>
       </div>
     </motion.aside>

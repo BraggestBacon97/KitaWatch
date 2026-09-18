@@ -34,7 +34,7 @@ function LegalPage({ title, updated, sections }: { title: string; updated: strin
 }
 
 const UPDATED = 'September 15, 2026';
-const DOMAIN = 'kitawatch.nx.kg';
+const DOMAIN = 'kitawatch.free.nf';
 
 export function TermsPage() {
   return (
