@@ -21,13 +21,16 @@ const entries = [
 
 for (const e of entries) {
   if (!existsSync(e.dir)) {
-    console.log(`[sidecars] skipping ${e.name} — ${path.relative(root, e.dir)} not found`);
+    console.log(`[sidecars] skipping ${e.name}`);
     continue;
   }
   const entryFile = path.join(e.dir, '_kitawatch_entry.py');
+  const [mod, attr] = e.module.split(':');
+  // Static import + app OBJECT (not "module:attr" string) — the string form
+  // makes uvicorn import from CWD, which breaks outside the source dir.
   writeFileSync(
     entryFile,
-    `import os\nimport sys\nimport multiprocessing\n\nif __name__ == "__main__":\n    multiprocessing.freeze_support()\n    # windowed (--noconsole) apps have no stdout on Windows; uvicorn's log\n    # formatter calls sys.stdout.isatty() and crashes without one\n    if sys.stdout is None:\n        sys.stdout = open(os.devnull, "w")\n        sys.stderr = open(os.devnull, "w")\n    import uvicorn\n    uvicorn.run("${e.module}", host="127.0.0.1", port=int(os.environ.get("PORT", "${e.port}")), log_level="warning")\n`,
+    `import os\nimport sys\nimport multiprocessing\n\nif __name__ == "__main__":\n    multiprocessing.freeze_support()\n    # windowed (--noconsole) apps have no stdout on Windows; uvicorn's log\n    # formatter calls sys.stdout.isatty() and crashes without one\n    if sys.stdout is None:\n        sys.stdout = open(os.devnull, "w")\n        sys.stderr = open(os.devnull, "w")\n    import uvicorn\n    import ${mod}\n    uvicorn.run(${mod}.${attr}, host="127.0.0.1", port=int(os.environ.get("PORT", "${e.port}")), log_level="warning")\n`,
   );
   console.log(`[sidecars] pyinstaller: ${e.name} ...`);
   execSync(
