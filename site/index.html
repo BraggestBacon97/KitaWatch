@@ -3,11 +3,13 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>KitaWatch — Desktop Anime Streaming</title>
+<meta name="description" content="KitaWatch: a local-first, cross-platform desktop anime streaming client. No accounts, no servers, no ads — automatic updates." />
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="KitaWatch" />
 <meta property="og:title" content="KitaWatch — Desktop Anime Streaming" />
 <meta property="og:description" content="A local-first, cross-platform anime streaming client for Windows & Linux. No servers, no ads, auto-updating. Free & open source." />
-<meta property="og:url" content="https://kitawatch.free.nf/" />
+<meta property="og:url" content="https://kitawatch.free.nf" />
 <meta property="og:image" content="https://kitawatch.free.nf/banner.png" />
 <meta property="og:image:width" content="2048" />
 <meta property="og:image:height" content="1024" />
@@ -15,8 +17,6 @@
 <meta name="theme-color" content="#0a0a0f" />
 <link rel="icon" type="image/png" href="banner.png" />
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
-<title>KitaWatch — Desktop Anime Streaming</title>
-<meta name="description" content="KitaWatch: a local-first, cross-platform desktop anime streaming client. No accounts, no servers, no ads — automatic updates." />
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@600&display=swap" rel="stylesheet" />
@@ -33,18 +33,25 @@
   ::selection { background:rgba(168,85,247,.4); }
 </style>
 </head>
-<body class="antialiased">
+<body class="antialiased overflow-x-hidden">
 
 <!-- NAV -->
 <nav class="fixed top-0 z-50 w-full border-b border-white/5 bg-[#0a0a0f]/80 backdrop-blur">
-  <div class="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
+  <div class="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
     <span class="text-lg font-extrabold tracking-tight text-white">Kita<span class="text-purple-400">Watch</span></span>
-    <div class="flex items-center gap-5 text-sm">
-      <a href="#features" class="text-zinc-400 hover:text-white">Features</a>
-      <a href="#download" class="text-zinc-400 hover:text-white">Download</a>
-      <a href="https://github.com/F0xyN0xy/KitaWatch" target="_blank" rel="noreferrer" class="text-zinc-400 hover:text-white">GitHub</a>
+
+    <!-- hamburger (mobile, pure CSS) -->
+    <input type="checkbox" id="nav-toggle" class="peer hidden" />
+    <label for="nav-toggle" class="cursor-pointer text-zinc-300 hover:text-white sm:hidden" aria-label="Menu">
+      <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </label>
+
+    <div class="absolute left-0 right-0 top-16 hidden flex-col gap-1 border-b border-white/5 bg-[#0a0a0f]/95 p-4 backdrop-blur peer-checked:flex sm:static sm:flex sm:flex-row sm:items-center sm:gap-5 sm:border-0 sm:bg-transparent sm:p-0 text-sm">
+      <a href="#features" class="rounded-lg px-3 py-2 text-zinc-400 hover:bg-white/5 hover:text-white">Features</a>
+      <a href="#download" class="rounded-lg px-3 py-2 text-zinc-400 hover:bg-white/5 hover:text-white">Download</a>
+      <a href="https://github.com/F0xyN0xy/KitaWatch" target="_blank" rel="noreferrer" class="rounded-lg px-3 py-2 text-zinc-400 hover:bg-white/5 hover:text-white">GitHub</a>
       <a href="https://github.com/F0xyN0xy/KitaWatch/issues" target="_blank" rel="noreferrer"
-         class="rounded-lg border border-white/10 px-3 py-1.5 text-zinc-300 hover:border-purple-500/60 hover:text-white">Report a bug</a>
+         class="rounded-lg border border-white/10 px-3 py-2 text-zinc-300 hover:border-purple-500/60 hover:text-white sm:py-1.5">Report a bug</a>
     </div>
   </div>
 </nav>
@@ -52,13 +59,13 @@
 <!-- HERO -->
 <header class="grid-bg relative overflow-hidden pt-16">
   <div class="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-[#0a0a0f]/40 to-[#0a0a0f]"></div>
-  <div class="relative mx-auto grid max-w-6xl items-center gap-10 px-6 pb-20 pt-14 lg:grid-cols-[1.2fr_1fr]">
+  <div class="relative mx-auto grid max-w-6xl items-center gap-10 px-4 pb-16 pt-14 sm:px-6 lg:grid-cols-[1.2fr_1fr] lg:pb-20">
     <div>
       <p class="mb-4 inline-flex items-center gap-2 rounded-full border border-purple-500/30 bg-purple-500/10 px-3 py-1 text-xs font-medium text-purple-300">
         <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
         v<span id="ver">…</span> — latest release
       </p>
-      <h1 class="glow text-5xl font-extrabold leading-tight text-white sm:text-6xl">
+      <h1 class="glow text-4xl font-extrabold leading-tight text-white sm:text-5xl lg:text-6xl">
         Anime, <span class="text-purple-400">locally.</span>
       </h1>
       <p class="mt-5 max-w-xl text-lg leading-relaxed text-zinc-400">
@@ -67,13 +74,13 @@
         Streams resolve from a chain of independent providers with automatic failover,
         and the app keeps itself updated.
       </p>
-      <div class="mt-8 flex flex-wrap items-center gap-3">
+      <div class="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         <a id="dl-main" href="#download"
-           class="btn-primary inline-flex items-center gap-2.5 rounded-xl px-6 py-3.5 font-semibold text-white">
+           class="btn-primary inline-flex items-center justify-center gap-2.5 rounded-xl px-6 py-3.5 text-center font-semibold text-white">
           <svg class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M3 12h3v7H3zm4.5-7h3v14h-3zM12 5h3v14h-3zm4.5 4h3v10h-3z"/></svg>
           Download for Windows
         </a>
-        <a href="#download" class="btn-ghost inline-flex items-center gap-2.5 rounded-xl px-6 py-3.5 font-semibold text-zinc-200">
+        <a href="#download" class="btn-ghost inline-flex items-center justify-center gap-2.5 rounded-xl px-6 py-3.5 text-center font-semibold text-zinc-200">
           <svg class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15H9v-6h2v6zm4 0h-2V7h2v10z"/></svg>
           Linux builds
         </a>
@@ -88,7 +95,7 @@
 </header>
 
 <!-- FEATURES -->
-<section id="features" class="mx-auto max-w-6xl px-6 py-20">
+<section id="features" class="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
   <h2 class="text-3xl font-bold text-white">Everything runs on <span class="text-purple-400">your</span> machine</h2>
   <p class="mt-2 max-w-2xl text-zinc-400">KitaWatch ships with its own backends bundled — nothing to install, nothing to configure, nothing phoning home.</p>
 
@@ -121,8 +128,8 @@
 </section>
 
 <!-- DOWNLOAD -->
-<section id="download" class="border-y border-white/5 bg-[#0d0d14] py-20">
-  <div class="mx-auto max-w-6xl px-6">
+<section id="download" class="border-y border-white/5 bg-[#0d0d14] py-14 sm:py-20">
+  <div class="mx-auto max-w-6xl px-4 sm:px-6">
     <h2 class="text-3xl font-bold text-white">Download</h2>
     <p class="mt-2 text-zinc-400">Latest release: <span class="font-mono text-purple-300" id="ver2">…</span> · installs are fully self-contained.</p>
 
@@ -173,7 +180,7 @@
 </section>
 
 <!-- PRIVACY / LEGAL -->
-<section class="mx-auto max-w-6xl px-6 py-16">
+<section class="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16">
   <div class="grid gap-8 md:grid-cols-3">
     <div>
       <h3 class="font-semibold text-white">No servers of ours</h3>
