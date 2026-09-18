@@ -239,11 +239,20 @@ const WATCH_TTL         = 3 * HOUR;
 const SHOW_IDENTITY_TTL = 24 * HOUR;
 const THIRTY_DAYS       = 30 * DAY;
 
-module.exports = {
-  _CACHE_ENABLED,
-  get, getAsync, set, setAsync,
-  isFresh, needsRefresh,
-  del, delAsync, delByPrefix, delByPrefixAsync,
-  episodeTTL, mapTTL,
-  WATCH_TTL, SHOW_IDENTITY_TTL, THIRTY_DAYS,
-};
+exports._CACHE_ENABLED = _CACHE_ENABLED;
+exports.get = get;
+exports.getAsync = getAsync;
+exports.set = set;
+exports.setAsync = setAsync;
+exports.isFresh = isFresh;
+exports.needsRefresh = needsRefresh;
+exports.del = del;
+exports.delAsync = delAsync;
+exports.delByPrefix = delByPrefix;
+exports.delByPrefixAsync = delByPrefixAsync;
+exports.episodeTTL = episodeTTL;
+exports.mapTTL = mapTTL;
+exports.WATCH_TTL = WATCH_TTL;
+exports.SHOW_IDENTITY_TTL = SHOW_IDENTITY_TTL;
+exports.THIRTY_DAYS = THIRTY_DAYS;
+module.exports = exports;
