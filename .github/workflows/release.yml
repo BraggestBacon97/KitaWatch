@@ -49,10 +49,12 @@ jobs:
           printf 'ANILIST_CLIENT_ID=%s\nANILIST_CLIENT_SECRET=%s\nANILIST_REDIRECT_URI=kitawatch://auth\n' \
             "${{ secrets.ANILIST_CLIENT_ID }}" "${{ secrets.ANILIST_CLIENT_SECRET }}" > src-tauri/.env
 
+      - name: Install Anivexa deps
+        run: npm install --prefix api/anivexa
+
       - name: Build sidecars
         run: npm run build:sidecars
 
-      # ── App ──
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
@@ -62,5 +64,5 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'KitaWatch ${{ github.ref_name }}'
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
