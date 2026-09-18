@@ -37,12 +37,6 @@ jobs:
       - name: Install frontend deps
         run: npm install
 
-      # ── Sidecars: fetch the API sources and build platform binaries ──
-      - name: Fetch API sources
-        run: |
-          git clone --depth 1 https://github.com/aryaniiil/kuhi-anime-api api/anime-api
-          git clone --depth 1 https://github.com/walterwhite-69/Anivexa-API api/anivexa
-
       - name: Install Python deps + PyInstaller
         run: |
           python -m pip install pyinstaller
