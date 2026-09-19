@@ -15,7 +15,7 @@ datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 
 
 a = Analysis(
-    ['C:/Users/foxyn/Documents/Coding/KitaWatch/proxy/_kitawatch_entry.py'],
+    ['/media/bacon/2475-849C/KitaWatch/proxy/_kitawatch_entry.py'],
     pathex=[],
     binaries=binaries,
     datas=datas,

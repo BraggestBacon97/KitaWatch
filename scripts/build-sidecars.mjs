@@ -22,7 +22,7 @@
  * produces the exe, this script FAILS LOUDLY instead of silently shipping
  * an install without the Anivexa sidecar.
  */
-import { existsSync, mkdirSync, writeFileSync, copyFileSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync, copyFileSync, statSync, chmodSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -32,7 +32,7 @@ const triple = process.platform === 'win32' ? 'x86_64-pc-windows-msvc' : 'x86_64
 const ext = process.platform === 'win32' ? '.exe' : '';
 const outDir = path.join(root, 'src-tauri', 'binaries');
 mkdirSync(outDir, { recursive: true });
-const py = process.env.KITAWATCH_PYTHON || 'python';
+const py = process.env.KITAWATCH_PYTHON || (process.platform === 'win32' ? 'python' : 'python3');
 
 const entries = [
   { dir: path.join(root, 'api', 'anime-api'), module: 'api:app', port: 8000, name: 'kitawatch-kuhi-api' },
@@ -60,6 +60,9 @@ for (const e of entries) {
   );
   const target = path.join(outDir, `${e.name}-${triple}${ext}`);
   copyFileSync(path.join(e.dir, 'dist', `${e.name}${ext}`), target);
+  if (process.platform !== 'win32') {
+    try { chmodSync(target, 0o755); } catch {}
+  }
   console.log(`[sidecars] -> ${path.relative(root, target)} (${statSync(target).size} bytes)`);
 }
 
@@ -83,6 +86,9 @@ if (existsSync(anivexa)) {
       continue;
     }
     if (existsSync(target)) {
+      if (process.platform !== 'win32') {
+        try { chmodSync(target, 0o755); } catch {}
+      }
       built = true;
       break;
     }
