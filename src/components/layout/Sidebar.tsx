@@ -122,7 +122,7 @@ export default function Sidebar() {
             Bugs & Ideas
           </a>
           <a
-            href="https://kitawatch.nx.kg"
+            href="https://kitawatch.free.nf"
             target="_blank"
             rel="noreferrer"
             className="text-zinc-500 hover:text-zinc-300"
