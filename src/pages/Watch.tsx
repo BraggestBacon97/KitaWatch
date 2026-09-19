@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
 import PageContainer from '@/components/layout/PageContainer';
@@ -12,7 +12,7 @@ import ErrorState from '@/components/ui/ErrorState';
 import Disclaimer from '@/components/ui/Disclaimer';
 import { api } from '@/services/api';
 import { anilist } from '@/services/anilist';
-import { resolveStreams } from '@/services/streamResolver';
+import { resolveStreams, streamUpdates } from '@/services/streamResolver';
 import { useApi } from '@/hooks/useApi';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useHistoryStore } from '@/stores/historyStore';
@@ -30,21 +30,39 @@ export default function Watch() {
   const autoplayNext = useSettingsStore((s) => s.autoplayNext);
 
   const info = useApi(() => fetchInfo(id!), [id]);
+  const [audio, setAudio] = useState<'sub' | 'dub'>('sub');
   const streams = useApi(
-    () => resolveStreams(id!, epNum, 'sub', info.data?.title),
-    [id, epNum, info.data?.title],
+    () => resolveStreams(id!, epNum, audio, info.data?.title),
+    [id, epNum, audio, info.data?.title],
   );
 
   const sources = streams.data?.streams ?? [];
+  // Late providers merge into the result in the background — reload on their
+  // update event so the Sources list grows without a manual refresh.
+  const reloadRef = useRef(streams.reload);
+  reloadRef.current = streams.reload;
+  useEffect(() => {
+    const onUpdate = (e: Event) => {
+      if ((e as CustomEvent<string>).detail === `${id}|${epNum}|${audio}`) {
+        reloadRef.current();
+      }
+    };
+    streamUpdates.addEventListener('update', onUpdate);
+    return () => streamUpdates.removeEventListener('update', onUpdate);
+  }, [id, epNum, audio]);
   const [active, setActive] = useState(0);
   const [exhausted, setExhausted] = useState(false);
   const [torrent, setTorrent] = useState<{ url: string; label: string } | null>(null);
 
+  const resetKey = `${id}|${epNum}|${audio}`;
+  const [lastResetKey, setLastResetKey] = useState(resetKey);
   useEffect(() => {
+    if (lastResetKey === resetKey) return;
+    setLastResetKey(resetKey);
     setActive(0);
     setExhausted(false);
     setTorrent(null);
-  }, [id, epNum, streams.data]);
+  }, [resetKey, lastResetKey]);
 
   useEffect(() => {
     if (info.data && sources.length > 0) {
@@ -117,6 +135,19 @@ export default function Watch() {
             Episode {epNum}
           </p>
         )}
+        <div className="ml-auto flex shrink-0 items-center rounded-lg bg-ink-850 p-0.5 ring-1 ring-white/10">
+          {(['sub', 'dub'] as const).map((a) => (
+            <button
+              key={a}
+              onClick={() => setAudio(a)}
+              className={`rounded-md px-3 py-1 text-xs font-medium transition ${
+                audio === a ? 'bg-accent-600 text-white' : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              {a === 'sub' ? 'Sub' : 'Dub'}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Player (HTTP sources first, torrent blob as last resort) */}

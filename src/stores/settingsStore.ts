@@ -3,10 +3,11 @@ import { persist } from 'zustand/middleware';
 
 export type Quality = 'auto' | '1080p' | '720p' | '480p';
 
-/** Native Kuhi providers (fastest-wins race; manual override order). */
+/** Provider order for the source list (prefix match on the "server" tag). */
 export const PROVIDER_PRIORITY = [
-  'anineko',
+  // Kuhi native + Anivexa providers (server tags are the bare provider name)
   'anizone',
+  'anineko',
   'anikoto',
   'reanime',
   'aniwaves',
@@ -15,6 +16,12 @@ export const PROVIDER_PRIORITY = [
   'animegg',
   'mkissa',
   'animeonsen',
+  // standalone providers
+  'anify',
+  'anikage',
+  '1anime',
+  'consumet',
+  'animepahe',
 ] as const;
 
 const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1']);
@@ -67,9 +74,11 @@ export const useSettingsStore = create<SettingsState>()(
       defaultQuality: 'auto',
       autoplayNext: true,
       providerPriority: [...PROVIDER_PRIORITY],
-      // Consumet is user-self-hostable (docker), so a remote URL is legit.
+      // Consumet is user-self-hostable (docker) and NOT bundled with the app,
+      // so the fallback is opt-in — enabling it without a local instance
+      // just adds a guaranteed connection-refused to every episode.
       consumetBaseUrl: import.meta.env.VITE_CONSUMET_BASE_URL ?? 'http://localhost:3000',
-      enableConsumetFallback: true,
+      enableConsumetFallback: false,
       proxyBaseUrl: sidecarDefault(import.meta.env.VITE_PROXY_BASE_URL, 'http://localhost:8001'),
       anivexaBaseUrl: sidecarDefault(import.meta.env.VITE_ANIVEXA_BASE_URL, 'http://localhost:4000'),
       enableAnivexa: true,

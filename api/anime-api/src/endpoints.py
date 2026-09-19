@@ -2,6 +2,8 @@ from fastapi import APIRouter, Query, HTTPException
 from typing import Optional
 import httpx
 import base64
+import httpx
+from curl_cffi.requests import AsyncSession
 
 from src.queries import MEDIA_LIST_FIELDS, MEDIA_FULL_FIELDS
 from src.parser import proxy_deep_images, inject_source_slugs, encode_pipe_request, decode_pipe_response
@@ -508,7 +510,7 @@ async def get_sources(
     }
     encoded_req = encode_pipe_request(payload)
 
-    async with httpx.AsyncClient(timeout=15.0) as client:
+    async with AsyncSession(impersonate="chrome124", timeout=15.0) as client:
         last_status = None
         for pipe_target, headers in iter_miruro_pipe_targets(encoded_req):
             print(f"\n[KUHI API] extracting stream sources pipe targeting:", pipe_target)
@@ -663,7 +665,7 @@ async def extract_simple(
             }
             encoded_req = encode_pipe_request(payload)
 
-            async with httpx.AsyncClient(timeout=15.0) as client:
+            async with AsyncSession(impersonate="chrome124", timeout=15.0) as client:
                 for pipe_target, headers in iter_miruro_pipe_targets(encoded_req):
                     print(f"\n[KUHI API] trying provider {try_provider}: {pipe_target}")
                     try:
