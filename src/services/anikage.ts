@@ -19,12 +19,9 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function get<T>(path: string): Promise<T> {
   const url = `${API}${path}`;
-  try {
-    const res = await fetch(url, { headers: { Referer: ORIGIN } });
-    if (res.ok) return (await res.json()) as T;
-  } catch {
-    // fall through to proxied attempt
-  }
+  // anikage.cc sends no CORS headers, so a direct fetch from the WebView is
+  // ALWAYS blocked — and still counts against their rate limiter. Go
+  // straight through the local proxy instead of wasting a doomed request.
   let res = await fetch(
     `${proxyBase()}/cors?u=${encodeURIComponent(url)}&ref=${encodeURIComponent(ORIGIN)}`,
   );
@@ -77,7 +74,9 @@ export const anikage = {
     const subtitles: SubtitleTrack[] = [];
 
     let i = 0;
-    for (const srv of info.servers ?? []) {
+    // Probe at most 3 servers: AniKage rate-limits per IP, and every probe is
+    // a request the resolver may re-fire on the next episode.
+    for (const srv of (info.servers ?? []).slice(0, 3)) {
       // Stagger probes: firing all servers at once trips AniKage's rate limiter (429)
       if (i++ > 0) await sleep(400);
       const langs = srv.subTypes?.length ? srv.subTypes : ['sub'];

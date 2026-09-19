@@ -15,7 +15,13 @@ const CACHE_TTL_MS = 10 * 60_000;
 export interface ResolvedStreams {
   streams: StreamSource[];
   subtitles?: SubtitleTrack[];
+  /** Why each provider failed, in the order they were tried. Surfaced in the
+   *  "No playable stream found" screen so failures are diagnosable instead
+   *  of silent. */
+  errors: string[];
 }
+
+const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /** Order streams by the user's provider preference list. */
 function prioritize(streams: StreamSource[]): StreamSource[] {
@@ -29,8 +35,11 @@ function prioritize(streams: StreamSource[]): StreamSource[] {
 
 /** Resolve playable streams for an episode, best source first:
  *  1) Kuhi extraction (by AniList ID) — races native providers
- *  2) Consumet (self-hosted Gogoanime)
- *  3) animepahe (via local proxy — kwik streams are referer-locked) */
+ *  2) Anivexa — maintained provider aggregator
+ *  3) 1anime — captured aggregator API (by AniList ID)
+ *  4) AniKage — documented JSON API, slug-based, referer-locked CDN
+ *  5) Consumet (self-hosted Gogoanime)
+ *  6) animepahe (via local proxy — kwik streams are referer-locked) */
 async function resolveStreamsInner(
   animeId: number | string,
   episode: number,
@@ -38,15 +47,17 @@ async function resolveStreamsInner(
   title?: string,
 ): Promise<ResolvedStreams> {
   const titleQ = title?.trim() || String(animeId);
+  const errors: string[] = [];
 
   // 1) Kuhi
   try {
     const r = await api.extract(animeId, episode, audio);
     if (r.streams?.length) {
-      return { streams: prioritize(r.streams), subtitles: r.subtitles };
+      return { streams: prioritize(r.streams), subtitles: r.subtitles, errors };
     }
-  } catch {
-    // fall through
+    errors.push('Kuhi: no streams for this episode');
+  } catch (e) {
+    errors.push(`Kuhi: ${errMsg(e)}`);
   }
 
   const settings = useSettingsStore.getState();
@@ -55,20 +66,24 @@ async function resolveStreamsInner(
   if (settings.enableAnivexa) {
     try {
       const r = await anivexa.watchAll(animeId, episode, audio);
-      if (r.streams.length) return { streams: prioritize(r.streams), subtitles: r.subtitles };
-    } catch {
-      // fall through
+      if (r.streams.length) return { streams: prioritize(r.streams), subtitles: r.subtitles, errors };
+      errors.push('Anivexa: no streams for this episode');
+    } catch (e) {
+      errors.push(`Anivexa: ${errMsg(e)}`);
     }
+  } else {
+    errors.push('Anivexa: disabled in Settings');
   }
 
   // 3) 1anime — captured aggregator API (by AniList ID)
   try {
     const r = await oneanime.streams(animeId, episode, audio);
     if (r.streams.length) {
-      return { streams: prioritize(r.streams), subtitles: r.subtitles };
+      return { streams: prioritize(r.streams), subtitles: r.subtitles, errors };
     }
-  } catch {
-    // fall through
+    errors.push('1anime: no streams for this episode');
+  } catch (e) {
+    errors.push(`1anime: ${errMsg(e)}`);
   }
 
   // 4) AniKage — documented JSON API, slug-based, referer-locked CDN
@@ -79,11 +94,14 @@ async function resolveStreamsInner(
     if (best) {
       const r = await anikage.sources(best.slug, episode, audio);
       if (r.streams.length) {
-        return { streams: prioritize(r.streams), subtitles: r.subtitles };
+        return { streams: prioritize(r.streams), subtitles: r.subtitles, errors };
       }
+      errors.push('AniKage: no streams for this episode');
+    } else {
+      errors.push('AniKage: anime not found');
     }
-  } catch {
-    // fall through
+  } catch (e) {
+    errors.push(`AniKage: ${errMsg(e)}`);
   }
 
   // 5) Consumet
@@ -108,15 +126,22 @@ async function resolveStreamsInner(
               quality: s.quality,
               referer: watch.headers?.Referer,
             }));
-          if (streams.length) return { streams };
+          if (streams.length) return { streams, errors };
+          errors.push('Consumet: no stream URLs returned');
+        } else {
+          errors.push('Consumet: episode not found');
         }
+      } else {
+        errors.push('Consumet: anime not found');
       }
-    } catch {
-      // fall through
+    } catch (e) {
+      errors.push(`Consumet: ${errMsg(e)}`);
     }
+  } else {
+    errors.push('Consumet: disabled in Settings');
   }
 
-  // 3) animepahe
+  // 6) animepahe
   try {
     const results = await animepahe.search(titleQ);
     const best = results[0];
@@ -127,15 +152,20 @@ async function resolveStreamsInner(
         const filtered =
           audio === 'dub' ? streams.filter((s) => s.audio === 'dub') : streams;
         if ((filtered.length > 0 ? filtered : streams).length > 0) {
-          return { streams: filtered.length > 0 ? filtered : streams };
+          return { streams: filtered.length > 0 ? filtered : streams, errors };
         }
+        errors.push('animepahe: no streams for this episode');
+      } else {
+        errors.push('animepahe: episode not found');
       }
+    } else {
+      errors.push('animepahe: anime not found');
     }
-  } catch {
-    // fall through
+  } catch (e) {
+    errors.push(`animepahe: ${errMsg(e)}`);
   }
 
-  return { streams: [] };
+  return { streams: [], errors };
 }
 
 export async function resolveStreams(

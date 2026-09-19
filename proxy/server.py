@@ -1,21 +1,14 @@
-"""KitaWatch proxy sidecar - CORS relay, referer injection, m3u8 rewriting.
-  GET /ap?m=...             -> animepahe internal API relay (Referer + CORS)
-  GET /kwik?u=<kwik link>   -> kwik token dance -> real m3u8 URL
-  GET /cors?u=<url>         -> generic JSON/text passthrough with CORS
-  GET /proxy_m3u8?url&referer  -> playlist with segments rewritten through us
-  GET /proxy_segment?url&referer -> bytes streamed with spoofed Referer
-Run: python -m uvicorn server:app --host 127.0.0.1 --port 8001  (from proxy/)
-"""
-import os
-import re
-from urllib.parse import urlencode, urljoin, urlparse
+from urllib.parse import urlparse, unquote
 
 import httpx
-from fastapi import FastAPI, Form, Query
+from fastapi import FastAPI, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, PlainTextResponse, StreamingResponse
+from fastapi.responses import JSONResponse, Response
 
 app = FastAPI()
+
+# CORS: any localhost origin may call us (the desktop app). Credentials are
+# never involved, so "*" is safe here.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -23,162 +16,191 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-AP_BASE = "https://animepahe.ru"
-UA = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
-}
-
-client = httpx.AsyncClient(timeout=30.0, follow_redirects=False)
-
-# Public-internet lockdown: only these hosts may be fetched through /cors,
-# /proxy_m3u8 and /proxy_segment. Override with PROXY_ALLOWLIST="a.com,b.com".
+# Domains we are willing to fetch on behalf of the app. Suffix match.
 DEFAULT_ALLOWLIST = {
-    "anikage.cc", "www.anikage.cc",
+    # metadata / community APIs
+    "anikage.cc",
     "kwik.si",
-    "animepahe.ru", "www.animepahe.ru",
-    "anilist.co", "api.anilist.co", "graphql.anilist.co", "s4.anilist.co",
-    "og.bakayaro.live",
+    "animepahe.ru",
+    "anilist.co",
     "api.aniskip.com",
-    "1anime.app", "www.1anime.app",
-    "localhost", "127.0.0.1",
+    "graphql.anilist.co",
+    "ltn.hitomi.la",
+    # providers
+    "1anime.app",
+    # local sidecars
+    "localhost",
+    "127.0.0.1",
+    # Anivexa provider CDNs (m3u8/subtitle hosts the watch endpoints return;
+    # these are referer-locked and CORS-locked, so they only play through us)
+    "vid-cdn.xyz",      # anizone (seiryuu.vid-cdn.xyz)
+    "bcdn2.se",         # senshi / kickasscdn (s-95.bcdn2.se)
+    "animeapps.top",    # anidbapp (playeng.animeapps.top)
+    "vid-cdn.xyz",      # anizone (seiryuu.vid-cdn.xyz)
+    "bcdn2.se",         # senshi / kickasscdn (s-95.bcdn2.se)
+    "animeapps.top",    # anidbapp (playeng.animeapps.top)
+    "bakayaro.live",    # anikage (og.bakayaro.live)
 }
-ALLOWED_HOSTS = {
-    h.strip().lower()
-    for h in os.environ.get("PROXY_ALLOWLIST", "").split(",")
-    if h.strip()
-} or DEFAULT_ALLOWLIST
+
+# Optional operator override: comma-separated extra hosts.
+import os
+
+ALLOWLIST = DEFAULT_ALLOWLIST | {
+    h.strip().lower() for h in os.environ.get("PROXY_ALLOWLIST", "").split(",") if h.strip()
+}
 
 
 def host_allowed(url: str) -> bool:
     try:
         host = (urlparse(url).hostname or "").lower()
-    except Exception:
+    except ValueError:
         return False
-    return host in ALLOWED_HOSTS or any(host.endswith("." + a) for a in ALLOWED_HOSTS)
+    return host in ALLOWLIST or any(host.endswith("." + a) for a in ALLOWLIST)
 
 
-def _headers(referer: str = "") -> dict:
-    h = dict(UA)
+def _headers(referer: str | None) -> dict[str, str]:
+    h = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+        )
+    }
     if referer:
         h["Referer"] = referer
     return h
 
 
-# ── animepahe ────────────────────────────────────────────────
-@app.get("/ap")
-async def ap(
-    m: str = Query(...),
-    q: str = Query(default=""),
-    id: str = Query(default=""),
-    sort: str = Query(default="episode_asc"),
-    page: int = Query(default=1),
-):
-    params: dict = {"m": m}
-    if q:
-        params["q"] = q
-    if id:
-        params["id"] = id
-    if m == "release":
-        params.update({"sort": sort, "page": page})
-    try:
-        r = await client.get(f"{AP_BASE}/api?{urlencode(params)}", headers=_headers(AP_BASE + "/"), timeout=15.0)
-    except Exception as e:
-        return JSONResponse({"error": f"upstream failed: {type(e).__name__}"}, status_code=502)
-    try:
-        return JSONResponse(r.json(), status_code=r.status_code)
-    except Exception:
-        return JSONResponse({"error": "bad upstream response", "body": r.text[:300]}, status_code=502)
-
-
-@app.get("/kwik")
-async def kwik(u: str = Query(...)):
-    r = await client.get(u, headers=_headers())
-    m = re.search(r'name="_token"\s+value="([^"]+)"', r.text)
-    if not m:
-        return JSONResponse({"error": "kwik token not found"}, status_code=502)
-    r2 = await client.post(u, data={"_token": m.group(1)}, headers=_headers(u))
-    if r2.status_code in (301, 302, 303, 307, 308):
-        return {"url": r2.headers["location"]}
-    m3 = re.search(r'"(https?://[^"]+\.m3u8[^"]*)"', r2.text)
-    if m3:
-        return {"url": m3.group(1)}
-    return JSONResponse({"error": "no stream in kwik response"}, status_code=502)
-
-
-# ── generic CORS passthrough ─────────────────────────────────
 @app.get("/cors")
-async def cors(u: str = Query(...), ref: str = Query(default="")):
+async def cors(u: str = Query(...), ref: str | None = None):
+    """Generic CORS-safe fetch: returns the body, streams binary."""
     if not host_allowed(u):
         return JSONResponse({"error": "host not allowed"}, status_code=403)
-    try:
-        r = await client.get(u, headers=_headers(ref), timeout=15.0)
-    except Exception as e:
-        return JSONResponse({"error": f"upstream failed: {type(e).__name__}"}, status_code=502)
-    content_type = r.headers.get("content-type", "application/json")
-    if "json" in content_type:
+    async with httpx.AsyncClient(follow_redirects=True, timeout=30.0) as client:
         try:
-            return JSONResponse(r.json(), status_code=r.status_code)
-        except Exception:
-            pass
-    return PlainTextResponse(r.text, status_code=r.status_code, media_type=content_type)
+            r = await client.get(u, headers=_headers(ref))
+        except httpx.HTTPError as e:
+            return JSONResponse({"error": str(e)}, status_code=502)
+    return Response(
+        content=r.content,
+        status_code=r.status_code,
+        media_type=r.headers.get("content-type", "application/octet-stream"),
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Cache-Control": "no-cache",
+        },
+    )
 
 
-# ── m3u8 proxy ───────────────────────────────────────────────
 @app.get("/proxy_m3u8")
-async def proxy_m3u8(url: str = Query(...), referer: str = Query(default="")):
+async def proxy_m3u8(url: str = Query(...), referer: str | None = None):
+    """Fetch an m3u8 playlist, rewrite segment URLs through /proxy_segment."""
     if not host_allowed(url):
-        return PlainTextResponse("host not allowed", status_code=403)
-    r = await client.get(url, headers=_headers(referer))
+        return JSONResponse({"error": "host not allowed"}, status_code=403)
+    async with httpx.AsyncClient(follow_redirects=True, timeout=30.0) as client:
+        try:
+            r = await client.get(url, headers=_headers(referer))
+        except httpx.HTTPError as e:
+            return JSONResponse({"error": str(e)}, status_code=502)
     if r.status_code != 200:
-        return PlainTextResponse("upstream error", status_code=r.status_code)
+        return Response(
+            content=r.content,
+            status_code=r.status_code,
+            media_type=r.headers.get("content-type", "text/plain"),
+        )
+    text = r.text
     base = url.rsplit("/", 1)[0] + "/"
-    out = []
-    for line in r.text.splitlines():
-        s = line.strip()
-        if not s or s.startswith("#"):
-            out.append(line)
-            continue
-        abs_url = urljoin(base, s)
-        out.append(f"/proxy_segment?{urlencode({'url': abs_url, 'referer': referer})}")
-    return PlainTextResponse(
-        "\n".join(out), media_type="application/vnd.apple.mpegurl"
+
+    def fix(line: str) -> str:
+        line = line.strip()
+        if not line or line.startswith("#"):
+            return line
+        if line.startswith("http://") or line.startswith("https://"):
+            seg = line
+        else:
+            seg = base + line
+        return f"/proxy_segment?url={seg}&referer={referer or ''}"
+
+    out = "\n".join(fix(l) for l in text.splitlines())
+    return Response(
+        content=out,
+        media_type="application/vnd.apple.mpegurl",
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Cache-Control": "no-cache",
+        },
     )
 
 
 @app.get("/proxy_segment")
-async def proxy_segment(url: str = Query(...), referer: str = Query(default="")):
+async def proxy_segment(url: str = Query(...), referer: str | None = None):
+    """Stream a video segment through us (avoids CDN referer checks)."""
     if not host_allowed(url):
-        return PlainTextResponse("host not allowed", status_code=403)
-    req = client.build_request("GET", url, headers=_headers(referer))
-    r = await client.send(req, stream=True)
-    return StreamingResponse(
-        r.aiter_bytes(),
-        media_type=r.headers.get("content-type", "application/octet-stream"),
+        return JSONResponse({"error": "host not allowed"}, status_code=403)
+    async with httpx.AsyncClient(follow_redirects=True, timeout=60.0) as client:
+        try:
+            r = await client.get(url, headers=_headers(referer))
+        except httpx.HTTPError as e:
+            return JSONResponse({"error": str(e)}, status_code=502)
+    return Response(
+        content=r.content,
         status_code=r.status_code,
-    )
-
-# ── Website build: OAuth token exchange (desktop uses the Rust command) ──
-ANILIST_TOKEN_URL = "https://anilist.co/api/v2/oauth/token"
-
-
-@app.post("/auth/token")
-async def auth_token(code: str = Form(...)):
-    client_id = os.environ.get("ANILIST_CLIENT_ID", "")
-    client_secret = os.environ.get("ANILIST_CLIENT_SECRET", "")
-    redirect_uri = os.environ.get("ANILIST_REDIRECT_URI", "")
-    r = await client.post(
-        ANILIST_TOKEN_URL,
-        json={
-            "grant_type": "authorization_code",
-            "client_id": client_id,
-            "client_secret": client_secret,
-            "redirect_uri": redirect_uri,
-            "code": code,
+        media_type=r.headers.get("content-type", "application/octet-stream"),
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Cache-Control": "no-cache",
         },
-        timeout=20.0,
     )
-    try:
-        return JSONResponse(r.json(), status_code=r.status_code)
-    except Exception:
-        return JSONResponse({"error": "bad upstream response"}, status_code=502)
+
+
+@app.get("/fetch")
+async def fetch_url(u: str = Query(...), ref: str | None = None):
+    """Passthrough with CORS headers (HTML pages, magnets, etc.)."""
+    if not host_allowed(u):
+        return JSONResponse({"error": "host not allowed"}, status_code=403)
+    async with httpx.AsyncClient(follow_redirects=True, timeout=30.0) as client:
+        try:
+            r = await client.get(u, headers=_headers(ref))
+        except httpx.HTTPError as e:
+            return JSONResponse({"error": str(e)}, status_code=502)
+    return Response(
+        content=r.content,
+        status_code=r.status_code,
+        media_type=r.headers.get("content-type", "application/octet-stream"),
+        headers={"Access-Control-Allow-Origin": "*"},
+    )
+
+
+@app.get("/ap")
+async def animepahe(m: str = Query(...), q: str = Query(default=""), id: str | None = None):
+    """animepahe search & episode-list passthrough (api.animepahe.ru)."""
+    base = "https://api.animepahe.ru"
+    url = f"{base}/search/{q}" if m == "search" else f"{base}/episodes/{id or q}"
+    async with httpx.AsyncClient(follow_redirects=True, timeout=30.0) as client:
+        try:
+            r = await client.get(url, headers=_headers("https://animepahe.ru/"))
+        except httpx.HTTPError as e:
+            return JSONResponse({"error": str(e)}, status_code=502)
+    return Response(
+        content=r.content,
+        status_code=r.status_code,
+        media_type="application/json",
+        headers={"Access-Control-Allow-Origin": "*"},
+    )
+
+
+@app.get("/kwik")
+async def kwik(u: str = Query(...)):
+    """kwik link extraction passthrough."""
+    if not host_allowed(u):
+        return JSONResponse({"error": "host not allowed"}, status_code=403)
+    async with httpx.AsyncClient(follow_redirects=False, timeout=30.0) as client:
+        try:
+            r = await client.get(u, headers=_headers("https://kwik.si/"))
+        except httpx.HTTPError as e:
+            return JSONResponse({"error": str(e)}, status_code=502)
+    return Response(
+        content=r.content,
+        status_code=r.status_code,
+        media_type=r.headers.get("content-type", "text/html"),
+        headers={"Access-Control-Allow-Origin": "*"},
+    )

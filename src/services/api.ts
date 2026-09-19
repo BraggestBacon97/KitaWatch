@@ -271,8 +271,11 @@ export const api = {
 
 /** Proxy helpers for m3u8 playlists and segments (local sidecar). */
 export const proxy = {
-  m3u8: (url: string, referer: string) =>
+  m3u8: (url: string, referer = '') =>
     `${useSettingsStore.getState().proxyBaseUrl}/proxy_m3u8?url=${encodeURIComponent(url)}&referer=${encodeURIComponent(referer)}`,
-  segment: (url: string, referer: string) =>
+  segment: (url: string, referer = '') =>
     `${useSettingsStore.getState().proxyBaseUrl}/proxy_segment?url=${encodeURIComponent(url)}&referer=${encodeURIComponent(referer)}`,
+  /** Generic CORS-relay for subtitles/text (host must be allowlisted). */
+  cors: (url: string) =>
+    `${useSettingsStore.getState().proxyBaseUrl}/cors?u=${encodeURIComponent(url)}`,
 };

@@ -130,6 +130,7 @@ export default function Watch() {
         <ErrorState
           title="No playable stream found"
           message="Every source failed. Retry, or try the torrent fallback below."
+          details={streams.data?.errors}
           onRetry={streams.reload}
         />
       )}
