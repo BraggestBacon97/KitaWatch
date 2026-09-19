@@ -343,7 +343,24 @@ fn kill_stragglers() {
     }
 }
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(target_os = "linux")]
+fn kill_stragglers() {
+    use std::process::{Command, Stdio};
+    for name in [
+        "kitawatch-kuhi-api",
+        "kitawatch-proxy",
+        "kitawatch-anivexa",
+    ] {
+        let _ = Command::new("pkill")
+            .arg("-f")
+            .arg(name)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+    }
+}
+
+#[cfg(not(any(target_os = "windows", target_os = "linux")))]
 fn kill_stragglers() {}
 
 pub fn start(app: &tauri::App) -> Sidecars {
