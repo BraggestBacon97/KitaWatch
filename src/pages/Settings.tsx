@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Github, LogOut, MessageSquareWarning, RefreshCw, Trash2 } from 'lucide-react';
+import { Bug, Github, LogOut, MessageSquareWarning, RefreshCw, Trash2 } from 'lucide-react';
 import PageContainer from '@/components/layout/PageContainer';
 import Button from '@/components/ui/Button';
 import Disclaimer from '@/components/ui/Disclaimer';
@@ -8,6 +8,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { useAnimeStore } from '@/stores/animeStore';
 import { anilist, startAniListOAuth } from '@/services/anilist';
 import { completeLogin, markLoginPending, setAuthNotifier } from '@/services/authFlow';
+import { getDebugReport } from '@/services/debug';
 
 const QUALITIES: Quality[] = ['auto', '1080p', '720p', '480p'];
 
@@ -57,6 +58,7 @@ export default function Settings() {
   const [note, setNote] = useState('');
   const [callbackUrl, setCallbackUrl] = useState('');
   const [consumetUrl, setConsumetUrl] = useState(consumetBaseUrl);
+  const [copyingReport, setCopyingReport] = useState(false);
 
   useEffect(() => setAuthNotifier(setNote), []);
 
@@ -89,6 +91,19 @@ export default function Settings() {
       flash(e instanceof Error ? e.message : 'Sync failed');
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const copyDebugReport = async () => {
+    setCopyingReport(true);
+    try {
+      const report = await getDebugReport();
+      await navigator.clipboard.writeText(report);
+      flash('Debug report copied — paste it into your issue');
+    } catch (e) {
+      flash(e instanceof Error ? e.message : 'Could not collect debug report');
+    } finally {
+      setCopyingReport(false);
     }
   };
 
@@ -234,6 +249,25 @@ export default function Settings() {
         </div>
         <p className="text-xs text-zinc-600">
           Run it with: <code className="text-zinc-400">docker run -p 3000:3000 riimuru/consumet-api</code>
+        </p>
+      </Section>
+
+      <Section title="Troubleshooting">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm text-zinc-300">Copy debug report</p>
+            <p className="text-xs text-zinc-600">
+              Sidecar status, port probes and recent logs — paste it into a bug report
+            </p>
+          </div>
+          <Button variant="outline" size="sm" onClick={copyDebugReport} disabled={copyingReport}>
+            <Bug className="h-3.5 w-3.5" /> {copyingReport ? 'Collecting...' : 'Copy report'}
+          </Button>
+        </div>
+        <p className="text-xs text-zinc-600">
+          Logs live in <code className="text-zinc-400">%APPDATA%\KitaWatch\logs</code>. Launch
+          the app with <code className="text-zinc-400">--debug</code> to keep sidecar windows
+          visible and raise log verbosity.
         </p>
       </Section>
 

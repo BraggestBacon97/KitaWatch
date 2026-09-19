@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions & Troubleshooting Help
+    url: https://github.com/F0xyN0xy/KitaWatch/discussions
+    about: Not sure it's a bug? Ask in Discussions first — the community and maintainers hang out there.
+  - name: Releases
+    url: https://github.com/F0xyN0xy/KitaWatch/releases
+    about: Check you're on the latest version before reporting — your issue may already be fixed.

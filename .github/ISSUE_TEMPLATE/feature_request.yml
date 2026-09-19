@@ -1,0 +1,82 @@
+name: Enhancement / Feature Request
+description: Suggest an idea or improvement for KitaWatch
+title: "[Enhancement]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Before you submit
+        1. **Search [existing issues](https://github.com/F0xyN0xy/KitaWatch/issues?q=is%3Aissue) and [Discussions](https://github.com/F0xyN0xy/KitaWatch/discussions) first** — your idea may already exist. Add a 👍 or comment there instead of opening a duplicate.
+        2. One idea per issue, please — it keeps tracking and closing clean.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the situation that made you want this. The "why" matters more than the "what".
+      placeholder: I often lose my place in a series because...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Describe the solution you'd like
+      description: What should happen, where in the app, and how should it behave?
+      placeholder: Add a "Continue watching" row on the home screen that...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you've considered (optional)
+      description: Other ways to solve it, workarounds you use today, or how other apps do it.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area / tag
+      description: Which part of the app would this touch?
+      options:
+        - Player / playback
+        - UI / navigation / design
+        - Providers / sources
+        - AniList integration
+        - Settings / configuration
+        - Performance / startup
+        - Installer / updater
+        - New sidecar or API
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system (where you'd use it)
+      options:
+        - Windows
+        - Linux
+        - macOS
+        - All of them
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: KitaWatch version (optional)
+      description: Version you run today, e.g. v0.5.5
+      placeholder: v0.5.5
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Confirmations
+      options:
+        - label: I searched existing issues and discussions — this isn't a duplicate
+          required: true
+        - label: This is one idea per issue
+          required: true

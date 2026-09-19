@@ -1,0 +1,131 @@
+name: Bug Report
+description: Something is broken or not working as expected
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Before you submit
+        1. **Search [existing issues](https://github.com/F0xyN0xy/KitaWatch/issues?q=is%3Aissue) first** — your bug may already be reported or fixed.
+        2. Make sure you're on the **latest version** (Settings → About, or the [Releases](https://github.com/F0xyN0xy/KitaWatch/releases) page).
+        3. Attach a **debug report** — it's the fastest way for us to diagnose your problem (see below). Issues without one may take much longer to triage.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect to happen, and what happened instead?
+      placeholder: |
+        Expected: The episode list loads when I open an anime.
+        Actual: All providers show "Failed to fetch".
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Minimal steps that trigger the problem, starting from a fresh app launch.
+      placeholder: |
+        1. Launch KitaWatch
+        2. Search for "..."
+        3. Click on episode 1
+        4. Player shows infinite spinner
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area / tag
+      description: Which part of the app is affected?
+      options:
+        - Sidecars / local API (Kuhi, Anivexa, proxy, ports)
+        - Providers / search results
+        - Player / playback / streams
+        - UI / navigation
+        - AniList (login, sync, favorites)
+        - Installer / updater / first launch
+        - Performance / high CPU / memory
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: KitaWatch version
+      description: Shown in Settings → About, e.g. v0.5.5
+      placeholder: v0.5.5
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install-source
+    attributes:
+      label: How did you install it?
+      options:
+        - GitHub Release installer (setup.exe / .msi / .AppImage)
+        - Built from source (npm run tauri build)
+        - Running in dev mode (npm run tauri dev)
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows 11
+        - Windows 10
+        - Linux
+    validations:
+      required: true
+
+  - type: textarea
+    id: debug-report
+    attributes:
+      label: Debug report
+      description: |
+        **If the app opens:** Settings → Troubleshooting → **Copy debug report**, paste it here.
+        **If the app won't launch at all:** launch it in debug mode and paste the console output:
+        1. Find the install folder: right-click the KitaWatch Start-menu/desktop shortcut → *Open file location* (click it again if it opens the shortcut itself).
+        2. In that folder: Shift + right-click empty space → *Open in Terminal* (or *Open command window here*).
+        3. Run `.\KitaWatch.exe --debug` — the sidecars get visible console windows and verbose logs.
+        4. Copy everything the terminal prints (and any sidecar console errors) into this field.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Sidecar logs (optional)
+      description: |
+        If the debug report wasn't enough: the files in the log directory
+        (Windows: `%LOCALAPPDATA%\com.kitawatch.app\logs`, Linux: `~/.local/share/com.kitawatch.app/logs`).
+        Paste any ERROR or Traceback sections you find.
+      render: shell
+
+  - type: input
+    id: device
+    attributes:
+      label: Device / hardware (optional)
+      description: e.g. "Desktop PC, Ryzen 5 5600X, 16 GB RAM" or "MacBook Air M2"
+      placeholder: Desktop PC, Ryzen 5 5600X, 16 GB RAM
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Confirmations
+      options:
+        - label: I searched existing issues and this is not a duplicate
+          required: true
+        - label: I am on the latest release (or tested with the latest code)
+          required: true
+        - label: I tried launching with `--debug` (sidecar consoles become visible)
+          required: false
+        - label: I checked Windows Security / antivirus quarantine for blocked `kitawatch-*.exe` files
+          required: false

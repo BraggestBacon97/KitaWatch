@@ -8,8 +8,21 @@
  *   kitawatch-kuhi-api-<triple>[.exe]   (PyInstaller onefile)
  *   kitawatch-proxy-<triple>[.exe]      (PyInstaller onefile)
  *   kitawatch-anivexa-<triple>[.exe]    (@yao-pkg/pkg)
+ *
+ * The generated Python entry also honours KITAWATCH_LOG_DIR: the Rust
+ * launcher sets it (plus LOG_NAME/LOG_LEVEL) so windowed sidecars write
+ * real logs users can paste into bug reports.
+ *
+ * Windows note: pkg fetches a prebuilt Node base binary; if the exact
+ * version is missing from the remote cache it falls back to building from
+ * source, which requires GNU `patch` in PATH (shipped with Git for Windows
+ * at C:\Program Files\Git\usr\bin, or `choco install patch`). node22 is
+ * tried FIRST because its Windows base binary is reliably cached (node20
+ * win-x64 has been missing, forcing the from-source path). If neither
+ * produces the exe, this script FAILS LOUDLY instead of silently shipping
+ * an install without the Anivexa sidecar.
  */
-import { existsSync, mkdirSync, writeFileSync, copyFileSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync, copyFileSync, statSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -37,7 +50,7 @@ for (const e of entries) {
   // makes uvicorn import from CWD, which breaks outside the source dir.
   writeFileSync(
     entryFile,
-    `import os\nimport sys\nimport multiprocessing\n\nif __name__ == "__main__":\n    multiprocessing.freeze_support()\n    # windowed (--noconsole) apps have no stdout on Windows; uvicorn's log\n    # formatter calls sys.stdout.isatty() and crashes without one\n    if sys.stdout is None:\n        sys.stdout = open(os.devnull, "w")\n        sys.stderr = open(os.devnull, "w")\n    import uvicorn\n    import ${mod}\n    uvicorn.run(${mod}.${attr}, host="127.0.0.1", port=int(os.environ.get("PORT", "${e.port}")), log_level="warning")\n`,
+    `import os\nimport sys\nimport multiprocessing\n\nif __name__ == "__main__":\n    multiprocessing.freeze_support()\n    # windowed (--noconsole) apps have no stdout on Windows; uvicorn's log\n    # formatter calls sys.stdout.isatty() and crashes without one.\n    # When the launcher sets KITAWATCH_LOG_DIR, mirror stdout/stderr to\n    # <dir>/<name>.log so users have something to paste into bug reports;\n    # otherwise fall back to the null device.\n    if sys.stdout is None:\n        log_dir = os.environ.get("KITAWATCH_LOG_DIR", "")\n        if log_dir:\n            os.makedirs(log_dir, exist_ok=True)\n            _log = open(os.path.join(log_dir, os.environ.get("LOG_NAME", "${e.name}") + ".log"), "a", buffering=1)\n            sys.stdout = _log\n            sys.stderr = _log\n        else:\n            sys.stdout = open(os.devnull, "w")\n            sys.stderr = open(os.devnull, "w")\n    import uvicorn\n    import ${mod}\n    uvicorn.run(${mod}.${attr}, host="127.0.0.1", port=int(os.environ.get("PORT", "${e.port}")), log_level=os.environ.get("LOG_LEVEL", "warning"))\n`,
   );
   console.log(`[sidecars] pyinstaller: ${e.name} ...`);
   execSync(
@@ -47,25 +60,42 @@ for (const e of entries) {
   );
   const target = path.join(outDir, `${e.name}-${triple}${ext}`);
   copyFileSync(path.join(e.dir, 'dist', `${e.name}${ext}`), target);
-  console.log(`[sidecars] -> ${path.relative(root, target)}`);
+  console.log(`[sidecars] -> ${path.relative(root, target)} (${statSync(target).size} bytes)`);
 }
 
 const anivexa = path.join(root, 'api', 'anivexa');
 if (existsSync(anivexa)) {
   const target = path.join(outDir, `kitawatch-anivexa-${triple}${ext}`);
-  console.log('[sidecars] pkg: anivexa (node20, no-bytecode) ...');
-  try {
-    execSync(
-      `npx -y @yao-pkg/pkg server.js --targets node20-${process.platform === 'win32' ? 'win' : 'linux'}-x64 --output "${target}"`,
-      { cwd: anivexa, stdio: 'inherit', shell: true },
-    );
-  } catch {
-    console.log('[sidecars] node20 cache miss — trying node22 ...');
-    execSync(
-      `npx -y @yao-pkg/pkg server.js --targets node22-${process.platform === 'win32' ? 'win' : 'linux'}-x64 --output "${target}"`,
-      { cwd: anivexa, stdio: 'inherit', shell: true },
+  let built = false;
+  for (const nodeMajor of ['node20', 'node22']) {
+    console.log(`[sidecars] pkg: anivexa (${nodeMajor}) ...`);
+    try {
+      execSync(
+        `npx -y @yao-pkg/pkg server.js --targets ${nodeMajor}-${process.platform === 'win32' ? 'win' : 'linux'}-x64 --output "${target}"`,
+        { cwd: anivexa, stdio: 'inherit', shell: true },
+      );
+    } catch (err) {
+      const msg = String(err);
+      if (process.platform === 'win32' && msg.includes('spawnSync patch')) {
+        console.log('[sidecars] base binary not in pkg cache and GNU patch not found in PATH.');
+        console.log('[sidecars] fix: add "C:\\Program Files\\Git\\usr\\bin" to PATH (or `choco install patch`).');
+      }
+      continue;
+    }
+    if (existsSync(target)) {
+      built = true;
+      break;
+    }
+  }
+  if (!built) {
+    throw new Error(
+      `[sidecars] FAILED to produce ${path.relative(root, target)}\n` +
+        'The Anivexa sidecar exe was NOT built — an install made now would have NO Anivexa API.\n' +
+        'On Windows: pkg needs either a cached prebuilt Node base binary or GNU patch in PATH.\n' +
+        'Install Git for Windows with "Unix tools" on PATH, or `choco install patch`, then re-run.',
     );
   }
+  console.log(`[sidecars] -> ${path.relative(root, target)} (${statSync(target).size} bytes)`);
 } else {
   console.log('[sidecars] skipping anivexa — api/anivexa not found');
 }

@@ -20,7 +20,10 @@ pub fn run() {
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .invoke_handler(tauri::generate_handler![commands::exchange_anilist_token]);
+        .invoke_handler(tauri::generate_handler![
+            commands::exchange_anilist_token,
+            commands::collect_debug_report,
+        ]);
 
     builder
         .setup(|app| {
@@ -31,8 +34,9 @@ pub fn run() {
             }
 
             // Debug spawns from source checkouts; release spawns the bundled
-            // binaries next to the app exe (windowless on Windows).
-            let sidecars = api_sidecar::start();
+            // binaries next to the app exe (windowless on Windows, logged to
+            // the app log dir — launch with `--debug` for consoles).
+            let sidecars = api_sidecar::start(app);
 
             app.manage(std::sync::Mutex::new(sidecars));
             Ok(())
