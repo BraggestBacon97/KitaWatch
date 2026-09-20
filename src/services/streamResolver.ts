@@ -5,6 +5,7 @@ import { anivexa } from './anivexa';
 import { anikage } from './anikage';
 import { oneanime } from './oneanime';
 import { anify } from './anify';
+import { probeAll } from './probe';
 import { useSettingsStore } from '@/stores/settingsStore';
 import type { AudioType, StreamSource, SubtitleTrack } from '@/types';
 
@@ -34,6 +35,7 @@ const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 function prioritize(streams: StreamSource[]): StreamSource[] {
   const order = useSettingsStore.getState().providerPriority;
   const rank = (s: StreamSource) => {
+    if (s.verified === false) return 999; // probed dead — sink to the bottom
     const i = order.findIndex((o) => s.server === o || s.server?.startsWith(`${o}:`));
     return i === -1 ? 99 : i;
   };
@@ -59,7 +61,7 @@ interface TaggedResult {
  * Resolve playable streams for an episode.
  *
  * All providers run IN PARALLEL. The first non-empty result is returned
- * IMMEDIATELY (playback starts, nothing waits). Slower providers merge in
+ * IMMEDIATATELY (playback starts, nothing waits). Slower providers merge in
  * the BACKGROUND: their streams (deduped by URL) are appended to the live
  * result and `streamUpdates` fires so the page re-renders with the fuller
  * source list. Adding a provider adds redundancy, not latency.
@@ -87,6 +89,30 @@ async function resolveStreamsInner(
   const nonEmpty = (name: string, r: ProviderResult): ProviderResult => {
     if (!r.streams.length) throw new Error(`${name}: no streams for this episode`);
     return r;
+  };
+
+  // Pre-play probing: providers return URLs that often 403/500 on playback.
+  // Verify unprobed streams in the background; dead ones sink to the bottom
+  // of the list and the page re-renders via streamUpdates. Overlapping passes
+  // dedupe through probeStream's inflight map + short cache.
+  const verify = async (v: ResolvedStreams) => {
+    const unprobed = v.streams.filter((s) => s.verified === undefined);
+    if (unprobed.length === 0) return;
+    const results = await probeAll(unprobed);
+    let changed = false;
+    for (const s of v.streams) {
+      const ok = results.get(s.url);
+      if (ok !== undefined && s.verified !== ok) {
+        s.verified = ok;
+        changed = true;
+      }
+    }
+    if (changed) {
+      v.streams = prioritize(v.streams);
+      streamUpdates.dispatchEvent(
+        new CustomEvent('update', { detail: `${animeId}|${episode}|${audio}` }),
+      );
+    }
   };
 
   const attempts: Attempt[] = [
@@ -191,6 +217,10 @@ async function resolveStreamsInner(
     errors,
   };
 
+  // Probe the race winner's streams in the background so dead URLs sink
+  // down the list while playback starts.
+  void verify(value);
+
   // Background merge: late providers append streams (deduped) to the LIVE
   // result and fire an update event so pages re-render with the fuller list.
   void (async () => {
@@ -224,6 +254,9 @@ async function resolveStreamsInner(
       );
       if (better) value.subtitles = better.result.subtitles;
     }
+
+    // Newly merged streams need verification too.
+    void verify(value);
 
     if (added > 0) {
       streamUpdates.dispatchEvent(

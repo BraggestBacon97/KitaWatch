@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, CircleAlert, CircleCheck } from 'lucide-react';
 import PageContainer from '@/components/layout/PageContainer';
 import VideoPlayer from '@/components/player/VideoPlayer';
 import TorrentPanel from '@/components/player/TorrentPanel';
@@ -64,6 +64,17 @@ export default function Watch() {
     setTorrent(null);
   }, [resetKey, lastResetKey]);
 
+  // Late providers merge in the background — if every source had failed but
+  // fresh candidates just arrived, reopen the player on the first viable one.
+  useEffect(() => {
+    if (!exhausted) return;
+    const next = sources.findIndex((s) => s.verified !== false);
+    if (next !== -1) {
+      setActive(next);
+      setExhausted(false);
+    }
+  }, [sources, exhausted]);
+
   useEffect(() => {
     if (info.data && sources.length > 0) {
       useHistoryStore.getState().upsert({
@@ -90,7 +101,9 @@ export default function Watch() {
       subtitles={streams.data?.subtitles}
       poster={info.data?.banner ?? info.data?.cover}
       onFatal={() => {
-        if (active + 1 < sources.length) setActive(active + 1);
+        // Skip sources the prober already marked dead.
+        const next = sources.findIndex((s, i) => i > active && s.verified !== false);
+        if (next !== -1) setActive(next);
         else setExhausted(true);
       }}
       onEnded={() => navigate(`/watch/${id}/${epNum + 1}`)}
@@ -205,6 +218,14 @@ export default function Watch() {
               {s.quality && <span className="text-zinc-500">· {s.quality}</span>}
               {s.audio === 'sub' && <Badge variant="sub">Sub</Badge>}
               {s.audio === 'dub' && <Badge variant="dub">Dub</Badge>}
+              {s.verified === true && (
+                <CircleCheck className="h-3 w-3 text-emerald-400" aria-label="Stream verified" />
+              )}
+              {s.verified === false && (
+                <span title="Stream unreachable during check">
+                  <CircleAlert className="h-3 w-3 text-red-400" />
+                </span>
+              )}
             </button>
           ))}
         </div>

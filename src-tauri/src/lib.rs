@@ -30,6 +30,9 @@ pub fn run() {
             #[cfg(any(target_os = "linux", all(debug_assertions, windows)))]
             {
                 use tauri_plugin_deep_link::DeepLinkExt;
+                 if let Err(e) = app.deep_link().register_all() {
+                    eprintln!("[kitawatch] warning: failed to register deep links: {e}");
+                }
                 app.deep_link().register_all()?;
             }
 

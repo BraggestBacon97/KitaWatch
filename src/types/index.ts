@@ -54,6 +54,9 @@ export interface StreamSource {
   quality?: string;
   /** Route playback through the local proxy (referer-locked hosts). */
   viaProxy?: boolean;
+  /** Pre-play probe result (see services/probe.ts): true = playable,
+   *  false = dead, undefined = not probed / inconclusive. */
+  verified?: boolean;
 }
 
 export interface SubtitleTrack {
