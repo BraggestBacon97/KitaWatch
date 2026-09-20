@@ -8,9 +8,11 @@ interface Props {
   title: string;
   items?: AnimeSummary[];
   loading?: boolean;
+  /** #7: watched fraction (0..1) per item — renders a progress bar (Continue Watching). */
+  getProgress?: (a: AnimeSummary) => number | undefined;
 }
 
-export default function AnimeRow({ title, items, loading }: Props) {
+export default function AnimeRow({ title, items, loading, getProgress }: Props) {
   const scroller = useRef<HTMLDivElement>(null);
 
   const scroll = (dir: 1 | -1) =>
@@ -45,11 +47,22 @@ export default function AnimeRow({ title, items, loading }: Props) {
           Array.from({ length: 8 }).map((_, i) => (
             <Skeleton key={i} className="aspect-[2/3] w-[150px] shrink-0 sm:w-[170px]" />
           ))}
-        {!loading && items?.map((a, i) => (
-          <div key={a.id} className="w-[150px] shrink-0 sm:w-[170px]">
-            <AnimeCard anime={a} index={i} />
-          </div>
-        ))}
+        {!loading && items?.map((a, i) => {
+          const p = getProgress?.(a);
+          return (
+            <div key={a.id} className="relative w-[150px] shrink-0 sm:w-[170px]">
+              <AnimeCard anime={a} index={i} />
+              {p != null && p > 0 && (
+                <div className="pointer-events-none absolute bottom-1.5 left-2 right-2 h-1 overflow-hidden rounded-full bg-white/20">
+                  <div
+                    className="h-full rounded-full bg-accent-500"
+                    style={{ width: `${Math.min(100, p * 100)}%` }}
+                  />
+                </div>
+              )}
+            </div>
+          );
+        })}
         {!loading && items && items.length === 0 && (
           <p className="py-8 text-sm text-zinc-500">Nothing here yet.</p>
         )}

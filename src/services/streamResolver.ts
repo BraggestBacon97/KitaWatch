@@ -30,6 +30,24 @@ export interface ResolvedStreams {
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
+/** Normalize a title for comparison: lowercase, alphanumerics only. */
+const normTitle = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+/** First search result whose title actually matches the query.
+ *  NEVER a blind first hit — a confident wrong anime (Lupin instead of the
+ *  requested show) is worse than no stream at all. */
+function bestTitleMatch<T extends { title?: string }>(results: T[], query: string): T | undefined {
+  const q = normTitle(query);
+  if (!q) return undefined;
+  return (
+    results.find((r) => normTitle(r.title ?? '') === q) ??
+    results.find((r) => {
+      const t = normTitle(r.title ?? '');
+      return t.includes(q) || q.includes(t);
+    })
+  );
+}
+
 /** Order streams by the user's provider preference list (prefix match on
  *  "server" so e.g. "anikage:koto" follows "anikage"). */
 function prioritize(streams: StreamSource[]): StreamSource[] {
@@ -61,7 +79,7 @@ interface TaggedResult {
  * Resolve playable streams for an episode.
  *
  * All providers run IN PARALLEL. The first non-empty result is returned
- * IMMEDIATATELY (playback starts, nothing waits). Slower providers merge in
+ * IMMEDIATELY (playback starts, nothing waits). Slower providers merge in
  * the BACKGROUND: their streams (deduped by URL) are appended to the live
  * result and `streamUpdates` fires so the page re-renders with the fuller
  * source list. Adding a provider adds redundancy, not latency.
@@ -139,8 +157,8 @@ async function resolveStreamsInner(
       name: 'AniKage',
       run: async () => {
         const results = await anikage.search(titleQ);
-        const best = results.find((r) => r.anilistId === Number(animeId)) ?? results[0];
-        if (!best) throw new Error('AniKage: anime not found');
+        const best = results.find((r) => r.anilistId === Number(animeId));
+        if (!best) throw new Error('AniKage: no exact AniList match');
         return nonEmpty('AniKage', await anikage.sources(best.slug, episode, audio));
       },
     },
@@ -150,8 +168,8 @@ async function resolveStreamsInner(
       run: async () => {
         if (!settings.enableConsumetFallback) throw new Error('Consumet: disabled in Settings');
         const results = await consumet.search(titleQ);
-        const best = results[0];
-        if (!best) throw new Error('Consumet: anime not found');
+        const best = bestTitleMatch(results, titleQ);
+        if (!best) throw new Error('Consumet: no confident title match');
         const detail = await consumet.info(best.id);
         const ep =
           detail.episodes.find((e) => e.number === episode) ??
@@ -176,8 +194,8 @@ async function resolveStreamsInner(
       name: 'animepahe',
       run: async () => {
         const results = await animepahe.search(titleQ);
-        const best = results[0];
-        if (!best) throw new Error('animepahe: anime not found');
+        const best = bestTitleMatch(results, titleQ);
+        if (!best) throw new Error('animepahe: no confident title match');
         const epSession = await animepahe.findEpisode(best.session, episode);
         if (!epSession) throw new Error('animepahe: episode not found');
         const streams = await animepahe.streams(epSession);

@@ -61,6 +61,13 @@ export default function Home() {
     title: h.title,
     cover: h.cover,
   }));
+  // #7: watched fraction per anime for the Continue Watching progress bars.
+  const progressById = new Map<number, number | undefined>(
+    historyEntries.map((h) => [
+      h.animeId,
+      h.duration ? (h.position ?? 0) / h.duration : undefined,
+    ]),
+  );
 
   const latestWatch = historyEntries[0];
   const recommendations = useApi<AnimeSummary[]>(
@@ -89,7 +96,11 @@ export default function Home() {
       ) : null}
 
       {continueWatching.length > 0 && (
-        <AnimeRow title="Continue Watching" items={continueWatching} />
+        <AnimeRow
+          title="Continue Watching"
+          items={continueWatching}
+          getProgress={(a) => progressById.get(a.id)}
+        />
       )}
 
       {latestWatch && recommendations.data && recommendations.data.length > 0 && (

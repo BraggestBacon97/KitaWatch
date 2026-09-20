@@ -4,6 +4,8 @@ import Hls from 'hls.js';
 import type { StreamSource, SubtitleTrack } from '@/types';
 import { proxy } from '@/services/api';
 import { useIntroSkip } from '@/hooks/useIntroSkip';
+import { useSettingsStore } from '@/stores/settingsStore';
+import { useHistoryStore } from '@/stores/historyStore';
 
 /* ASS subtitles via JASSub (libass WASM), loaded from CDN only when needed. */
 const JASSUB_BASE = 'https://cdn.jsdelivr.net/npm/jassub@1/dist/';
@@ -85,7 +87,7 @@ export default function VideoPlayer({
   // Latest callbacks without re-creating the player instance
   const callbacks = useRef({ onEnded, onFatal });
   callbacks.current = { onEnded, onFatal };
-  const skipTime = useIntroSkip(animeId, episodeNumber);
+  const skips = useIntroSkip(animeId, episodeNumber);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -93,6 +95,8 @@ export default function VideoPlayer({
     let art: Artplayer | null = null;
     let subBlobUrl: string | null = null;
     let failed = false;
+    // Listeners wired after art creation; cleaned up by the effect return.
+    const disposers: (() => void)[] = [];
 
     const fail = () => {
       if (failed) return;
@@ -183,51 +187,145 @@ export default function VideoPlayer({
         },
       });
       artRef.current = art;
+      const instance = art;
 
       // ASS subtitles: render via JASSub (native tracks only do VTT/SRT)
       if (sub && subType === 'ass') {
         loadJassub()
-          .then(() => art!.plugins.add(jassubPlugin(proxy.cors(sub.url))))
+          .then(() => instance.plugins.add(jassubPlugin(proxy.cors(sub.url))))
           .catch(() => {
             /* fall back to no subtitles */
           });
       }
 
       // Fatal error on direct mp4 files too
-      art.video.addEventListener('error', fail);
+      instance.video.addEventListener('error', fail);
 
-      art.on('video:ended', () => {
+      instance.on('video:ended', () => {
         if (autoplayNext && hasNextEpisode) callbacks.current.onEnded();
+      });
+
+      // remember fullscreen across sessions. Webviews reject programmatic
+      // fullscreen without a user gesture, so restore on the first
+      // interaction instead of at mount.
+      const onFullscreenChange = (state: boolean) => {
+        useSettingsStore.getState().setLastFullscreen(state);
+      };
+      instance.on('fullscreen', onFullscreenChange);
+      disposers.push(() => instance.off('fullscreen', onFullscreenChange));
+
+      const tryRestoreFullscreen = () => {
+        const s = useSettingsStore.getState();
+        if (s.rememberFullscreen && s.lastFullscreen) {
+          try {
+            instance.fullscreen = true;
+          } catch {
+            /* rejected without a gesture — stay windowed */
+          }
+        }
+        instance.off('video:play', tryRestoreFullscreen);
+        instance.off('click', tryRestoreFullscreen);
+      };
+      instance.on('video:play', tryRestoreFullscreen);
+      instance.on('click', tryRestoreFullscreen);
+      disposers.push(() => {
+        instance.off('video:play', tryRestoreFullscreen);
+        instance.off('click', tryRestoreFullscreen);
+      });
+
+      // resume where the user left off (same anime + episode only;
+      // near-start and near-end positions start fresh by design).
+      const resumeEntry = useHistoryStore
+        .getState()
+        .entries.find((e) => e.animeId === Number(animeId) && e.episode === episodeNumber);
+      const resumeAt =
+        resumeEntry?.position != null &&
+        resumeEntry?.duration != null &&
+        resumeEntry.position > 15 &&
+        resumeEntry.position < resumeEntry.duration - 30
+          ? resumeEntry.position
+          : null;
+      const onMeta = () => {
+        if (resumeAt != null) instance.currentTime = resumeAt;
+      };
+      instance.video.addEventListener('loadedmetadata', onMeta, { once: true });
+      disposers.push(() => instance.video.removeEventListener('loadedmetadata', onMeta));
+
+      // save position — throttled to ~every 10s, plus a final save on
+      // pause/ended so the resume point is fresh.
+      let lastPosSave = 0;
+      const savePosition = (force = false) => {
+        const now = Date.now();
+        if (!force && now - lastPosSave < 10_000) return;
+        lastPosSave = now;
+        const d = instance.duration;
+        if (!d || Number.isNaN(d)) return;
+        useHistoryStore
+          .getState()
+          .updatePosition(Number(animeId), episodeNumber, instance.currentTime, d);
+      };
+      const onTime = () => savePosition();
+      const onStop = () => savePosition(true);
+      instance.video.addEventListener('timeupdate', onTime);
+      instance.video.addEventListener('pause', onStop);
+      instance.video.addEventListener('ended', onStop);
+      disposers.push(() => {
+        instance.video.removeEventListener('timeupdate', onTime);
+        instance.video.removeEventListener('pause', onStop);
+        instance.video.removeEventListener('ended', onStop);
       });
     };
 
     void init();
 
     return () => {
+      for (const dispose of disposers) dispose();
       art?.destroy(false);
       artRef.current = null;
       if (subBlobUrl) URL.revokeObjectURL(subBlobUrl);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [source.url, source.type]);
+  }, [source.url, source.type, animeId, episodeNumber]);
 
-  // Skip intro button
+  // intro/outro skip buttons (AniSkip data). Only visible while the
+  // playhead is inside the skip window — no permanent button clutter.
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) return;
-    let btn: HTMLButtonElement | null = null;
-    if (skipTime) {
-      btn = document.createElement('button');
-      btn.textContent = `Skip intro →`;
+    if (!container || !artRef.current) return;
+    const art = artRef.current;
+    const specs = [
+      { interval: skips?.op ?? null, label: 'Skip intro →' },
+      { interval: skips?.ed ?? null, label: 'Skip outro →' },
+    ];
+    const btns: { interval: { start: number; end: number }; el: HTMLButtonElement }[] = [];
+    for (const spec of specs) {
+      const interval = spec.interval;
+      if (!interval) continue;
+      const btn = document.createElement('button');
+      btn.textContent = spec.label;
       btn.className =
         'absolute bottom-24 right-4 z-40 rounded-lg bg-black/70 px-3 py-1.5 text-sm text-white hover:bg-black/90';
-      btn.onclick = () => artRef.current && (artRef.current.currentTime = skipTime.end);
+      btn.style.display = 'none';
+      btn.onclick = () => {
+        art.currentTime = interval.end;
+        btn.style.display = 'none';
+      };
       container.appendChild(btn);
+      btns.push({ interval, el: btn });
     }
-    return () => {
-      btn?.remove();
+    const update = () => {
+      const t = art.currentTime;
+      for (const b of btns) {
+        b.el.style.display = t >= b.interval.start && t < b.interval.end ? '' : 'none';
+      }
     };
-  }, [skipTime]);
+    update();
+    art.video.addEventListener('timeupdate', update);
+    return () => {
+      art.video.removeEventListener('timeupdate', update);
+      for (const b of btns) b.el.remove();
+    };
+  }, [skips, source.url]);
 
   return (
     <div className="relative w-full overflow-hidden rounded-xl bg-black ring-1 ring-white/10">

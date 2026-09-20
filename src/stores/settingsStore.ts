@@ -58,6 +58,10 @@ interface SettingsState {
   /** Bundled Anivexa sidecar (Node, by-AniList-ID provider aggregator). */
   anivexaBaseUrl: string;
   enableAnivexa: boolean;
+  /** #4: remember fullscreen state and restore it on the next playback. */
+  rememberFullscreen: boolean;
+  /** #4: last fullscreen state (internal, persisted). */
+  lastFullscreen: boolean;
   setDefaultQuality: (q: Quality) => void;
   setAutoplayNext: (v: boolean) => void;
   setProviderPriority: (order: string[]) => void;
@@ -66,6 +70,8 @@ interface SettingsState {
   setProxyBaseUrl: (url: string) => void;
   setAnivexaBaseUrl: (url: string) => void;
   setEnableAnivexa: (v: boolean) => void;
+  setRememberFullscreen: (v: boolean) => void;
+  setLastFullscreen: (v: boolean) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -82,6 +88,8 @@ export const useSettingsStore = create<SettingsState>()(
       proxyBaseUrl: sidecarDefault(import.meta.env.VITE_PROXY_BASE_URL, 'http://localhost:8001'),
       anivexaBaseUrl: sidecarDefault(import.meta.env.VITE_ANIVEXA_BASE_URL, 'http://localhost:4000'),
       enableAnivexa: true,
+      rememberFullscreen: true,
+      lastFullscreen: false,
       setDefaultQuality: (defaultQuality) => set({ defaultQuality }),
       setAutoplayNext: (autoplayNext) => set({ autoplayNext }),
       setProviderPriority: (providerPriority) => set({ providerPriority }),
@@ -91,6 +99,8 @@ export const useSettingsStore = create<SettingsState>()(
       setProxyBaseUrl: (proxyBaseUrl) => set({ proxyBaseUrl }),
       setAnivexaBaseUrl: (anivexaBaseUrl) => set({ anivexaBaseUrl }),
       setEnableAnivexa: (enableAnivexa) => set({ enableAnivexa }),
+      setRememberFullscreen: (rememberFullscreen) => set({ rememberFullscreen }),
+      setLastFullscreen: (lastFullscreen) => set({ lastFullscreen }),
     }),
     {
       name: 'kitawatch-settings',
