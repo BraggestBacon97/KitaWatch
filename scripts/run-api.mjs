@@ -16,7 +16,7 @@ if (!existsSync(path.join(apiDir, 'api.py'))) {
   process.exit(1);
 }
 
-const python = process.env.KITAWATCH_PYTHON || 'python';
+const python = process.env.KITAWATCH_PYTHON || (process.platform === 'win32' ? 'python' : 'python3');
 console.log('[api] Starting Kuhi API on http://127.0.0.1:8000 ...');
 
 const child = spawn(
