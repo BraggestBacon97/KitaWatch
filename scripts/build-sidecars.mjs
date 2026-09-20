@@ -86,18 +86,21 @@ if (existsSync(anivexa)) {
   for (const nodeMajor of ['node20', 'node22']) {
     console.log(`[sidecars] pkg: anivexa (${nodeMajor}) ...`);
     try {
-      // npx.cmd on Windows: execFileSync bypasses the shell, so it can't
-      // rely on PATHEXT to resolve .cmd shims — spell it out.
+      // shell: true so Windows resolves the npx.cmd shim — execFileSync
+      // without a shell throws EINVAL on .cmd files (Node >= 20.12).
       execFileSync(
-        npx,
+        'npx',
         [
           '-y', '@yao-pkg/pkg', 'server.js',
           '--targets', `${nodeMajor}-${process.platform === 'win32' ? 'win' : 'linux'}-x64`,
           '--output', target,
         ],
-        { cwd: anivexa, stdio: 'inherit' },
+        { cwd: anivexa, stdio: 'inherit', shell: true },
       );
     } catch (err) {
+      // Always log the real failure — the old catch hid everything that
+      // wasn't the specific "patch missing" case.
+      console.log(`[sidecars] ${nodeMajor} failed: ${String(err).slice(0, 600)}`);
       const msg = String(err);
       if (process.platform === 'win32' && msg.includes('spawnSync patch')) {
         console.log('[sidecars] base binary not in pkg cache and GNU patch not found in PATH.');
