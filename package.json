@@ -1,7 +1,7 @@
 {
   "name": "kitawatch",
   "private": true,
-  "version": "0.6.4",
+  "version": "0.6.5",
   "description": "KitaWatch - desktop anime streaming client (Tauri v2 + React)",
   "scripts": {
     "dev": "vite",
