@@ -7,11 +7,8 @@ src-tauri/gen
 
 # cloned third-party APIs — fetched via npm run setup:api / setup:anivexa
 # Vendored sidecar sources
-api/anime-api/.git/
+api/anime-api/
 api/anivexa/.git/
-api/anime-api/__pycache__/
-api/anime-api/build/
-api/anime-api/dist/
 api/anivexa/node_modules/
 *.pyc
 
