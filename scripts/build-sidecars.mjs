@@ -23,7 +23,7 @@
  * an install without the Anivexa sidecar.
  */
 import { existsSync, mkdirSync, writeFileSync, copyFileSync, statSync, chmodSync } from 'node:fs';
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
@@ -33,6 +33,7 @@ const ext = process.platform === 'win32' ? '.exe' : '';
 const outDir = path.join(root, 'src-tauri', 'binaries');
 mkdirSync(outDir, { recursive: true });
 const py = process.env.KITAWATCH_PYTHON || (process.platform === 'win32' ? 'python' : 'python3');
+const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
 
 const entries = [
   { dir: path.join(root, 'api', 'anime-api'), module: 'api:app', port: 8000, name: 'kitawatch-kuhi-api' },
@@ -53,21 +54,23 @@ for (const e of entries) {
     `import os\nimport sys\nimport multiprocessing\n\nif __name__ == "__main__":\n    multiprocessing.freeze_support()\n    # windowed (--noconsole) apps have no stdout on Windows; uvicorn's log\n    # formatter calls sys.stdout.isatty() and crashes without one.\n    # When the launcher sets KITAWATCH_LOG_DIR, mirror stdout/stderr to\n    # <dir>/<name>.log so users have something to paste into bug reports;\n    # otherwise fall back to the null device.\n    if sys.stdout is None:\n        log_dir = os.environ.get("KITAWATCH_LOG_DIR", "")\n        if log_dir:\n            os.makedirs(log_dir, exist_ok=True)\n            _log = open(os.path.join(log_dir, os.environ.get("LOG_NAME", "${e.name}") + ".log"), "a", buffering=1)\n            sys.stdout = _log\n            sys.stderr = _log\n        else:\n            sys.stdout = open(os.devnull, "w")\n            sys.stderr = open(os.devnull, "w")\n    import uvicorn\n    import ${mod}\n    uvicorn.run(${mod}.${attr}, host="127.0.0.1", port=int(os.environ.get("PORT", "${e.port}")), log_level=os.environ.get("LOG_LEVEL", "warning"))\n`,
   );
   console.log(`[sidecars] pyinstaller: ${e.name} ...`);
+  // execFileSync with an args array: no shell, so paths/values from env or
+  // the filesystem can never be reinterpreted (CWE-78).
   execFileSync(
-  python,
-  [
-    '-m', 'PyInstaller',
-    '--onefile', '--noconsole', '--noconfirm', '--clean',
-    '--name', name,
-    '--collect-submodules', 'api',
-    '--collect-all', 'uvicorn',
-    '--collect-all', 'fastapi',
-    '--collect-all', 'httpx',
-    '--hidden-import', 'multipart',
-    entryFile,
-  ],
-  { cwd: entryDir, stdio: 'inherit' },
-);
+    py,
+    [
+      '-m', 'PyInstaller',
+      '--onefile', '--noconsole', '--noconfirm', '--clean',
+      '--name', e.name,
+      '--collect-submodules', 'api',
+      '--collect-all', 'uvicorn',
+      '--collect-all', 'fastapi',
+      '--collect-all', 'httpx',
+      '--hidden-import', 'multipart',
+      entryFile,
+    ],
+    { cwd: e.dir, stdio: 'inherit' },
+  );
   const target = path.join(outDir, `${e.name}-${triple}${ext}`);
   copyFileSync(path.join(e.dir, 'dist', `${e.name}${ext}`), target);
   if (process.platform !== 'win32') {
@@ -83,9 +86,16 @@ if (existsSync(anivexa)) {
   for (const nodeMajor of ['node20', 'node22']) {
     console.log(`[sidecars] pkg: anivexa (${nodeMajor}) ...`);
     try {
-      execSync(
-        `npx -y @yao-pkg/pkg server.js --targets ${nodeMajor}-${process.platform === 'win32' ? 'win' : 'linux'}-x64 --output "${target}"`,
-        { cwd: anivexa, stdio: 'inherit', shell: true },
+      // npx.cmd on Windows: execFileSync bypasses the shell, so it can't
+      // rely on PATHEXT to resolve .cmd shims — spell it out.
+      execFileSync(
+        npx,
+        [
+          '-y', '@yao-pkg/pkg', 'server.js',
+          '--targets', `${nodeMajor}-${process.platform === 'win32' ? 'win' : 'linux'}-x64`,
+          '--output', target,
+        ],
+        { cwd: anivexa, stdio: 'inherit' },
       );
     } catch (err) {
       const msg = String(err);
@@ -96,7 +106,7 @@ if (existsSync(anivexa)) {
       continue;
     }
     if (existsSync(target)) {
-       if (process.platform !== 'win32') {
+      if (process.platform !== 'win32') {
         try { chmodSync(target, 0o755); } catch {}
       }
       built = true;
