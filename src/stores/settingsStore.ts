@@ -79,8 +79,8 @@ export const useSettingsStore = create<SettingsState>()(
       // just adds a guaranteed connection-refused to every episode.
       consumetBaseUrl: import.meta.env.VITE_CONSUMET_BASE_URL ?? 'http://localhost:3000',
       enableConsumetFallback: false,
-      proxyBaseUrl: sidecarDefault(import.meta.env.VITE_PROXY_BASE_URL, 'http://localhost:8001'),
-      anivexaBaseUrl: sidecarDefault(import.meta.env.VITE_ANIVEXA_BASE_URL, 'http://localhost:4000'),
+      proxyBaseUrl: sidecarDefault(import.meta.env.VITE_PROXY_BASE_URL, 'http://127.0.0.1:8001'),
+      anivexaBaseUrl: sidecarDefault(import.meta.env.VITE_ANIVEXA_BASE_URL, 'http://127.0.0.1:4000'),
       enableAnivexa: true,
       setDefaultQuality: (defaultQuality) => set({ defaultQuality }),
       setAutoplayNext: (autoplayNext) => set({ autoplayNext }),
@@ -100,8 +100,8 @@ export const useSettingsStore = create<SettingsState>()(
         if (version < 2) {
           // v1 persisted whatever the build-time defaults were — including
           // the dead hosted-API URLs from old releases. Force loopback.
-          if (!isLoopbackUrl(s.anivexaBaseUrl)) s.anivexaBaseUrl = 'http://localhost:4000';
-          if (!isLoopbackUrl(s.proxyBaseUrl)) s.proxyBaseUrl = 'http://localhost:8001';
+          if (!isLoopbackUrl(s.anivexaBaseUrl)) s.anivexaBaseUrl = 'http://127.0.0.1:4000';
+          if (!isLoopbackUrl(s.proxyBaseUrl)) s.proxyBaseUrl = 'http://127.0.0.1:8001';
         }
         if (version < 3) {
           // v2 still trusted the hosted Consumet default: old releases

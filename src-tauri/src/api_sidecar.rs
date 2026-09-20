@@ -284,7 +284,9 @@ mod imp {
 
         if !port_open("127.0.0.1:8000") {
             if let Some(exe) = bundled_exe("kitawatch-kuhi-api") {
-                if let Some(c) = spawn_logged("kitawatch-kuhi-api", &logs, Command::new(exe)) {
+                let mut cmd = Command::new(exe);
+                cmd.env("PORT", "8000");
+                if let Some(c) = spawn_logged("kitawatch-kuhi-api", &logs, cmd) {
                     eprintln!("[kitawatch] started bundled kuhi-api on 127.0.0.1:8000 (log: {})",
                         logs.join("kitawatch-kuhi-api.log").display());
                     procs.push(("Kuhi API", Proc::Bundled(c)));
@@ -296,7 +298,9 @@ mod imp {
 
         if !port_open("127.0.0.1:8001") {
             if let Some(exe) = bundled_exe("kitawatch-proxy") {
-                if let Some(c) = spawn_logged("kitawatch-proxy", &logs, Command::new(exe)) {
+                let mut cmd = Command::new(exe);
+                cmd.env("PORT", "8001");
+                if let Some(c) = spawn_logged("kitawatch-proxy", &logs, cmd) {
                     eprintln!("[kitawatch] started bundled proxy on 127.0.0.1:8001 (log: {})",
                         logs.join("kitawatch-proxy.log").display());
                     procs.push(("proxy", Proc::Bundled(c)));
