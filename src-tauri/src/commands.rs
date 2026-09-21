@@ -32,12 +32,26 @@ fn env_or(key: &str, fallback: Option<String>) -> String {
 
 #[tauri::command]
 pub async fn exchange_anilist_token(
+    app: tauri::AppHandle,
     code: String,
     client_id: Option<String>,
     client_secret: Option<String>,
     redirect_uri: Option<String>,
 ) -> Result<String, String> {
-    crate::config::load();
+    // Load .env from resource dir (Linux AppImage/deb need this) + exe dir + cwd
+    if let Ok(res_dir) = app.path().resource_dir() {
+        crate::config::load_with_resource_dir(&res_dir);
+    } else {
+        crate::config::load();
+    }
+
+    let cid = env_or("ANILIST_CLIENT_ID", client_id);
+    let csec = env_or("ANILIST_CLIENT_SECRET", client_secret);
+    let ruri = env_or("ANILIST_REDIRECT_URI", redirect_uri);
+
+    if cid.is_empty() || csec.is_empty() {
+        eprintln!("[kitawatch] anilist token exchange: missing credentials (cid_empty={}, csec_empty={})", cid.is_empty(), csec.is_empty());
+    }
 
     let res = reqwest::Client::new()
         .post("https://anilist.co/api/v2/oauth/token")
@@ -45,9 +59,9 @@ pub async fn exchange_anilist_token(
         .header(reqwest::header::ACCEPT, "application/json")
         .json(&json!({
             "grant_type": "authorization_code",
-            "client_id": env_or("ANILIST_CLIENT_ID", client_id),
-            "client_secret": env_or("ANILIST_CLIENT_SECRET", client_secret),
-            "redirect_uri": env_or("ANILIST_REDIRECT_URI", redirect_uri),
+            "client_id": cid,
+            "client_secret": csec,
+            "redirect_uri": ruri,
             "code": code,
         }))
         .send()
@@ -55,7 +69,15 @@ pub async fn exchange_anilist_token(
         .map_err(|e| e.to_string())?;
 
     if !res.status().is_success() {
-        return Err(format!("AniList responded {}", res.status()));
+        let status = res.status();
+        let body = res.text().await.unwrap_or_default();
+        // Surface AniList's error body (e.g. invalid_grant) for diagnostics
+        if body.is_empty() {
+            return Err(format!("AniList responded {}", status));
+        } else {
+            let preview: String = body.chars().take(300).collect();
+            return Err(format!("AniList responded {}: {}", status, preview));
+        }
     }
     let json: serde_json::Value = res.json().await.map_err(|e| e.to_string())?;
     json["access_token"]
@@ -107,7 +129,11 @@ fn tail(path: &std::path::Path, max_lines: usize) -> String {
 
 #[tauri::command]
 pub async fn collect_debug_report(app: tauri::AppHandle) -> Result<String, String> {
-    crate::config::load();
+    if let Ok(res_dir) = app.path().resource_dir() {
+        crate::config::load_with_resource_dir(&res_dir);
+    } else {
+        crate::config::load();
+    }
     let mut r = String::new();
 
     push!(r, "KitaWatch v{} — debug report", env!("CARGO_PKG_VERSION"));
@@ -119,35 +145,70 @@ pub async fn collect_debug_report(app: tauri::AppHandle) -> Result<String, Strin
         crate::api_sidecar::debug_mode()
     );
     push!(r, "log_dir={}", crate::api_sidecar::log_dir(&app).display());
+    if let Ok(res_dir) = app.path().resource_dir() {
+        push!(r, "resource_dir={}", res_dir.display());
+    }
+    if let Ok(v) = std::env::var("ANILIST_CLIENT_ID") {
+        push!(r, "anilist_client_id_present={} len={}", !v.is_empty(), v.len());
+    } else {
+        push!(r, "anilist_client_id_present=false (env not set)");
+    }
     r.push('\n');
 
-    // --- bundled sidecar binaries next to the app exe ----------------------
+    // --- bundled sidecar binaries (exe dir + resource dir) -----------------
     push!(r, "[sidecar binaries]");
-    match std::env::current_exe() {
-        Ok(mut exe) => {
+    let ext = if cfg!(windows) { ".exe" } else { "" };
+    let mut candidates_base: Vec<std::path::PathBuf> = Vec::new();
+    if let Ok(mut exe) = std::env::current_exe() {
+        exe.pop();
+        candidates_base.push(exe.clone());
+        candidates_base.push(exe.join("binaries"));
+    }
+    if let Ok(res_dir) = app.path().resource_dir() {
+        candidates_base.push(res_dir.clone());
+        candidates_base.push(res_dir.join("binaries"));
+    }
+    // Linux specific fallbacks (deb/appimage layouts)
+    for extra in ["../lib/kitawatch", "../lib/com.kitawatch.app"] {
+        if let Ok(mut exe) = std::env::current_exe() {
             exe.pop();
-            let ext = if cfg!(windows) { ".exe" } else { "" };
-            for name in ["kitawatch-kuhi-api", "kitawatch-proxy", "kitawatch-anivexa"] {
-                let mut found = None;
-                for cand in [
-                    exe.join(format!("{name}{ext}")),
-                    exe.join(format!("{}-{}{}", name, crate::api_sidecar::SIDE_TRIPLE, ext)),
-                ] {
-                    if cand.exists() {
-                        found = Some(cand);
-                        break;
-                    }
-                }
-                match found {
-                    Some(p) => {
-                        let size = std::fs::metadata(&p).map(|m| m.len()).unwrap_or(0);
-                        push!(r, "  {name}: FOUND ({}, {} bytes)", p.display(), size);
-                    }
-                    None => push!(r, "  {name}: MISSING next to {}", exe.display()),
+            candidates_base.push(exe.join(extra));
+            candidates_base.push(exe.join(format!("{extra}/resources")));
+        }
+    }
+    for name in ["kitawatch-kuhi-api", "kitawatch-proxy", "kitawatch-anivexa"] {
+        let mut found = None;
+        for base in &candidates_base {
+            for cand in [
+                base.join(format!("{name}{ext}")),
+                base.join(format!("{}-{}{}", name, crate::api_sidecar::SIDE_TRIPLE, ext)),
+            ] {
+                if cand.exists() {
+                    found = Some(cand);
+                    break;
                 }
             }
+            if found.is_some() { break; }
         }
-        Err(e) => push!(r, "  cannot resolve app exe path: {e}"),
+        match found {
+            Some(p) => {
+                let size = std::fs::metadata(&p).map(|m| m.len()).unwrap_or(0);
+                let executable = {
+                    #[cfg(unix)]
+                    {
+                        use std::os::unix::fs::PermissionsExt;
+                        std::fs::metadata(&p).map(|m| m.permissions().mode() & 0o111 != 0).unwrap_or(false)
+                    }
+                    #[cfg(not(unix))]
+                    { true }
+                };
+                push!(r, "  {name}: FOUND ({}, {} bytes, executable={})", p.display(), size, executable);
+            }
+            None => {
+                let searched = candidates_base.iter().map(|p| p.display().to_string()).collect::<Vec<_>>().join(", ");
+                push!(r, "  {name}: MISSING (searched: {})", searched);
+            }
+        }
     }
     r.push('\n');
 

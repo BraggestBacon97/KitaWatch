@@ -4,6 +4,12 @@ import gzip
 
 
 def proxy_img(url: str) -> str:
+    # Linux WebKitGTK (4.0/4.1) sometimes fails on serveproxy.com due to TLS/cert or CSP.
+    # Allow disabling the proxy via env var KITAWATCH_DISABLE_IMAGE_PROXY=1 (useful for local debugging).
+    # Otherwise keep proxy for Windows where it bypasses AniList rate-limits, but frontend has fallback.
+    import os
+    if os.environ.get("KITAWATCH_DISABLE_IMAGE_PROXY") == "1":
+        return url
     if url and isinstance(url, str) and (url.startswith("http://") or url.startswith("https://")):
         return f"https://serveproxy.com/url?url={url}"
     return url

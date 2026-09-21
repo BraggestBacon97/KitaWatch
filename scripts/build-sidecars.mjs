@@ -28,7 +28,13 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const triple = process.platform === 'win32' ? 'x86_64-pc-windows-msvc' : 'x86_64-unknown-linux-gnu';
+const triple = (() => {
+  if (process.platform === 'win32') return 'x86_64-pc-windows-msvc';
+  // honour explicit arch override for ARM CI (e.g. SIDE_TRIPLE env)
+  if (process.env.SIDE_TRIPLE) return process.env.SIDE_TRIPLE;
+  if (process.arch === 'arm64') return 'aarch64-unknown-linux-gnu';
+  return 'x86_64-unknown-linux-gnu';
+})();
 const ext = process.platform === 'win32' ? '.exe' : '';
 const outDir = path.join(root, 'src-tauri', 'binaries');
 mkdirSync(outDir, { recursive: true });
@@ -55,7 +61,7 @@ for (const e of entries) {
   console.log(`[sidecars] pyinstaller: ${e.name} ...`);
   execSync(
     `"${py}" -m PyInstaller --onefile --noconsole --noupx --noarchive --noconfirm --clean --name ${e.name} ` +
-      `--collect-submodules api --collect-all uvicorn --collect-all fastapi --collect-all httpx --hidden-import multipart "${entryFile}"`,
+      `--collect-submodules api --collect-all uvicorn --collect-all fastapi --collect-all httpx --collect-all curl_cffi --collect-all certifi --hidden-import multipart --hidden-import curl_cffi --hidden-import certifi "${entryFile}"`,
     { cwd: e.dir, stdio: 'inherit' },
   );
   const target = path.join(outDir, `${e.name}-${triple}${ext}`);
