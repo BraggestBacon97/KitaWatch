@@ -130,9 +130,17 @@ if (existsSync(anivexa)) {
     }
   }
   if (!built) {
-    if (process.env.CI) {
-      console.log(`[sidecars] WARNING: anivexa not built (pkg timeout/missing base) - continuing without it (CI mode)`);
+    if (process.env.CI || process.env.SKIP_ANIVEXA === '1') {
+      console.log(`[sidecars] WARNING: anivexa not built (pkg timeout/missing base) - creating dummy placeholder for Tauri`);
       console.log(`[sidecars] The app will run without Anivexa provider, but other providers still work`);
+      // Tauri requires externalBin files to exist at build time (tauri.conf -> binaries/...); create empty placeholder
+      try {
+        writeFileSync(target, '#!/bin/sh\necho "anivexa stub - not built (pkg skipped)" >&2\nexit 1\n');
+        chmodSync(target, 0o755);
+        console.log(`[sidecars] -> placeholder ${path.relative(root, target)}`);
+      } catch (e) {
+        console.log(`[sidecars] failed to create placeholder: ${e}`);
+      }
     } else {
       throw new Error(
         `[sidecars] FAILED to produce ${path.relative(root, target)}\n` +
