@@ -60,7 +60,7 @@ for (const e of entries) {
   );
   console.log(`[sidecars] pyinstaller: ${e.name} ...`);
   execSync(
-    `"${py}" -m PyInstaller --onefile --noconsole --noupx --noarchive --noconfirm --clean --name ${e.name} ` +
+    `"${py}" -m PyInstaller --onefile --noconsole --noupx --noconfirm --clean --name ${e.name} ` +
       `--collect-submodules api --collect-all uvicorn --collect-all fastapi --collect-all httpx --collect-all curl_cffi --collect-all certifi --hidden-import multipart --hidden-import curl_cffi --hidden-import certifi "${entryFile}"`,
     { cwd: e.dir, stdio: 'inherit' },
   );
