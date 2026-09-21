@@ -148,11 +148,56 @@ pub async fn collect_debug_report(app: tauri::AppHandle) -> Result<String, Strin
     push!(r, "log_dir={}", crate::api_sidecar::log_dir(&app).display());
     if let Ok(res_dir) = app.path().resource_dir() {
         push!(r, "resource_dir={}", res_dir.display());
+        // list resource_dir contents (helps diagnose missing .env)
+        match std::fs::read_dir(&res_dir) {
+            Ok(entries) => {
+                let mut files: Vec<String> = Vec::new();
+                for e in entries.flatten() {
+                    let p = e.path();
+                    let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("?");
+                    let is_dir = if p.is_dir() { "/" } else { "" };
+                    files.push(format!("{name}{is_dir}"));
+                }
+                files.sort();
+                push!(r, "resource_dir_contents={}", files.join(", "));
+                // check nested resources/.env
+                let nested = res_dir.join("resources/.env");
+                push!(r, "resources/.env exists={}", nested.exists());
+            }
+            Err(e) => push!(r, "resource_dir read error: {e}"),
+        }
+        push!(r, ".env at resource_dir/.env exists={}", res_dir.join(".env").exists());
+    } else {
+        push!(r, "resource_dir=FAILED to resolve");
+    }
+    // check .env at exe dir
+    if let Ok(mut exe) = std::env::current_exe() {
+        exe.pop();
+        push!(r, "exe_dir={}", exe.display());
+        push!(r, "exe_dir/.env exists={}", exe.join(".env").exists());
+        push!(r, "exe_dir/resources/.env exists={}", exe.join("resources/.env").exists());
     }
     if let Ok(v) = std::env::var("ANILIST_CLIENT_ID") {
-        push!(r, "anilist_client_id_present={} len={}", !v.is_empty(), v.len());
+        push!(r, "ANILIST_CLIENT_ID len={} prefix={}", v.len(), &v[..v.len().min(4)]);
+        // also check if .env was loaded but empty
+        if v.is_empty() {
+            push!(r, "WARNING: ANILIST_CLIENT_ID is empty - .env exists but value empty (GitHub secrets missing?)");
+        }
     } else {
-        push!(r, "anilist_client_id_present=false (env not set)");
+        push!(r, "ANILIST_CLIENT_ID env not set at all");
+    }
+    if let Ok(v) = std::env::var("ANILIST_CLIENT_SECRET") {
+        push!(r, "ANILIST_CLIENT_SECRET len={}", v.len());
+        if v.is_empty() {
+            push!(r, "WARNING: ANILIST_CLIENT_SECRET empty");
+        }
+    } else {
+        push!(r, "ANILIST_CLIENT_SECRET env not set");
+    }
+    if let Ok(v) = std::env::var("ANILIST_REDIRECT_URI") {
+        push!(r, "ANILIST_REDIRECT_URI={}", v);
+    } else {
+        push!(r, "ANILIST_REDIRECT_URI not set");
     }
     r.push('\n');
 
