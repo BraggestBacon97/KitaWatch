@@ -14,6 +14,7 @@ use serde_json::json;
 use std::io::Read as _;
 use std::net::TcpStream;
 use std::time::Duration;
+use tauri::Manager;
 
 macro_rules! push {
     ($r:expr, $($arg:tt)*) => {{

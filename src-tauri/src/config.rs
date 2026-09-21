@@ -26,7 +26,7 @@ pub fn load() {
         }
         // 1c) AppImage: resources next to squashfs mount -> check $APPDIR/resources
         if let Ok(appdir) = std::env::var("APPDIR") {
-            try_load(&PathBuf::from(appdir).join("resources/.env"));
+            try_load(&PathBuf::from(appdir.clone()).join("resources/.env"));
             try_load(&PathBuf::from(appdir).join(".env"));
         }
     }
