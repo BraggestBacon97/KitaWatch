@@ -23,17 +23,22 @@
  * an install without the Anivexa sidecar.
  */
 import { existsSync, mkdirSync, writeFileSync, copyFileSync, statSync, chmodSync } from 'node:fs';
-import { execFileSync } from 'node:child_process';
+import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const triple = process.platform === 'win32' ? 'x86_64-pc-windows-msvc' : 'x86_64-unknown-linux-gnu';
+const triple = (() => {
+  if (process.platform === 'win32') return 'x86_64-pc-windows-msvc';
+  // honour explicit arch override for ARM CI (e.g. SIDE_TRIPLE env)
+  if (process.env.SIDE_TRIPLE) return process.env.SIDE_TRIPLE;
+  if (process.arch === 'arm64') return 'aarch64-unknown-linux-gnu';
+  return 'x86_64-unknown-linux-gnu';
+})();
 const ext = process.platform === 'win32' ? '.exe' : '';
 const outDir = path.join(root, 'src-tauri', 'binaries');
 mkdirSync(outDir, { recursive: true });
 const py = process.env.KITAWATCH_PYTHON || (process.platform === 'win32' ? 'python' : 'python3');
-const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
 
 const entries = [
   { dir: path.join(root, 'api', 'anime-api'), module: 'api:app', port: 8000, name: 'kitawatch-kuhi-api' },
@@ -54,21 +59,9 @@ for (const e of entries) {
     `import os\nimport sys\nimport multiprocessing\n\nif __name__ == "__main__":\n    multiprocessing.freeze_support()\n    # windowed (--noconsole) apps have no stdout on Windows; uvicorn's log\n    # formatter calls sys.stdout.isatty() and crashes without one.\n    # When the launcher sets KITAWATCH_LOG_DIR, mirror stdout/stderr to\n    # <dir>/<name>.log so users have something to paste into bug reports;\n    # otherwise fall back to the null device.\n    if sys.stdout is None:\n        log_dir = os.environ.get("KITAWATCH_LOG_DIR", "")\n        if log_dir:\n            os.makedirs(log_dir, exist_ok=True)\n            _log = open(os.path.join(log_dir, os.environ.get("LOG_NAME", "${e.name}") + ".log"), "a", buffering=1)\n            sys.stdout = _log\n            sys.stderr = _log\n        else:\n            sys.stdout = open(os.devnull, "w")\n            sys.stderr = open(os.devnull, "w")\n    import uvicorn\n    import ${mod}\n    uvicorn.run(${mod}.${attr}, host="127.0.0.1", port=int(os.environ.get("PORT", "${e.port}")), log_level=os.environ.get("LOG_LEVEL", "warning"))\n`,
   );
   console.log(`[sidecars] pyinstaller: ${e.name} ...`);
-  // execFileSync with an args array: no shell, so paths/values from env or
-  // the filesystem can never be reinterpreted (CWE-78).
-  execFileSync(
-    py,
-    [
-      '-m', 'PyInstaller',
-      '--onefile', '--noconsole', '--noconfirm', '--clean',
-      '--name', e.name,
-      '--collect-submodules', 'api',
-      '--collect-all', 'uvicorn',
-      '--collect-all', 'fastapi',
-      '--collect-all', 'httpx',
-      '--hidden-import', 'multipart',
-      entryFile,
-    ],
+  execSync(
+    `"${py}" -m PyInstaller --onefile --noconsole --noupx --noconfirm --clean --name ${e.name} ` +
+      `--collect-submodules api --collect-all uvicorn --collect-all fastapi --collect-all httpx --collect-all curl_cffi --collect-all certifi --hidden-import multipart --hidden-import curl_cffi --hidden-import certifi "${entryFile}"`,
     { cwd: e.dir, stdio: 'inherit' },
   );
   const target = path.join(outDir, `${e.name}-${triple}${ext}`);
@@ -86,21 +79,11 @@ if (existsSync(anivexa)) {
   for (const nodeMajor of ['node20', 'node22']) {
     console.log(`[sidecars] pkg: anivexa (${nodeMajor}) ...`);
     try {
-      // shell: true so Windows resolves the npx.cmd shim — execFileSync
-      // without a shell throws EINVAL on .cmd files (Node >= 20.12).
-      execFileSync(
-        'npx',
-        [
-          '-y', '@yao-pkg/pkg', 'server.js',
-          '--targets', `${nodeMajor}-${process.platform === 'win32' ? 'win' : 'linux'}-x64`,
-          '--output', target,
-        ],
+      execSync(
+        `npx -y @yao-pkg/pkg server.js --targets ${nodeMajor}-${process.platform === 'win32' ? 'win' : 'linux'}-x64 --output "${target}"`,
         { cwd: anivexa, stdio: 'inherit', shell: true },
       );
     } catch (err) {
-      // Always log the real failure — the old catch hid everything that
-      // wasn't the specific "patch missing" case.
-      console.log(`[sidecars] ${nodeMajor} failed: ${String(err).slice(0, 600)}`);
       const msg = String(err);
       if (process.platform === 'win32' && msg.includes('spawnSync patch')) {
         console.log('[sidecars] base binary not in pkg cache and GNU patch not found in PATH.');
